@@ -2,23 +2,11 @@
 
 /*
    -------------------------------------------------------------------------------------
-   HX711_ADC
-   Arduino library for HX711 24-Bit Analog-to-Digital Converter for Weight Scales
-   Olav Kallhovd sept2017
+   ESP32 mikrokontroller és HX711 súlymérő szenzorral épített időzítő horgászathoz
+   
    -------------------------------------------------------------------------------------
 */
-/*
-   Settling time (number of samples) and data filtering can be adjusted in the config.h file
-   For calibration and storing the calibration value in eeprom, see example file "Calibration.ino"
 
-   The update() function checks for new data and starts the next conversion. In order to acheive maximum effective
-   sample rate, update() should be called at least as often as the HX711 sample rate; >10Hz@10SPS, >80Hz@80SPS.
-
-   This example shows how call the update() function from an ISR with interrupt on the dout pin.
-   Try this if you experince longer settling time due to time consuming code in the loop(),
-   i.e. if you are refreshing an graphical LCD, etc.
-   The pin used for dout must be external interrupt capable.
-*/
 #include <splash.h>
 #include <Adafruit_SSD1306.h>
 #include <HX711_ADC.h>
@@ -26,18 +14,16 @@
 #include <EEPROM.h>
 #endif
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
+#define SCREEN_WIDTH 128 // OLED display width, szélesség pixelben
+#define SCREEN_HEIGHT 32 // OLED display height, magaság pixelben
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-const int HX711_dout = 16; //mcu > HX711 dout pin, must be external interrupt capable!
-const int HX711_sck = 4; //mcu > HX711 sck pin
 
-//OLED Display
-
+const int HX711_dout = 16; //mcu > HX711 dout pin, ESP32 GPIO16
+const int HX711_sck = 4; //mcu > HX711 sck pin, ESP32 GPIO4
 
 //HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
@@ -71,7 +57,7 @@ void setup() {
   Serial.println("Starting...");  
   
   float calibrationValue; // calibration value
-  calibrationValue = 600.0; // uncomment this if you want to set this value in the sketch
+  calibrationValue = 32.47; // uncomment this if you want to set this value in the sketch
 #if defined(ESP8266) || defined(ESP32)
   //EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch the value from eeprom
 #endif
@@ -93,19 +79,12 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
 
+//OLED Display
+
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
       Serial.println(F("SSD1306 allocation failed"));
       for(;;);
     }
-    /*delay(2000);
-    display.clearDisplay();
-  
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(0, 10);
-    // Display static text
-    display.println("Hello, world!");
-    display.display();*/
 }
 //interrupt routine:
 void dataReadyISR() {
@@ -114,7 +93,6 @@ void dataReadyISR() {
     }
   }
   
-
 void loop() {
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
 
@@ -128,7 +106,7 @@ void loop() {
       //Serial.print("  ");
       //Serial.println(millis() - t);
       if (reading != lastReading){
-      displayWeight(reading); 
+      displayWeight(reading); // Adatok kiírása a kijelzőre
     }
     lastReading = reading;
     t = millis();
@@ -136,7 +114,7 @@ void loop() {
     }
   }
 
-  // receive command from serial terminal, send 't' to initiate tare operation:
+  // receive command from serial terminal, send 't' to initiate tare operation: (a terminálra a t küldése után újra tárázik)
   if (Serial.available() > 0) {
     char inByte = Serial.read();
     if (inByte == 't') LoadCell.tareNoDelay();
