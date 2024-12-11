@@ -55,38 +55,34 @@ void displayWeight(int weight){
   display.println();
   display.println("Suly meres:");
   display.setTextSize(2);  
-  display.println(String(weight) + " gramm");
-  /*delay(300);
-  display.println("Suly meres:");
-  display.display();
-  display.setCursor(0, 10);
-  display.setTextSize(2);
-  display.print(weight);
-  display.print(" ");
-  display.print("g");
-  //display.display();*/ 
+  display.println(String(weight) + "g :" + " 0db");
+  
 }
 
-void displayTime(){
+void displayTimeTemp(){
   DateTime now = rtc.now();
+  float temp = rtc.getTemperature();
   //display.print("Current time:");
   display.println(String(now.year(), DEC) + "/" + String(now.month(), DEC) + "/" + String(now.day(), DEC));
   //display.println(daysOfTheWeek[now.dayOfTheWeek()]);
   display.println(String(now.hour(), DEC) + ":" + String(now.minute(), DEC) + ":" + String(now.second(), DEC));
-  delay(300);
+  display.println((String(temp)+" "+char(247)+"C"));
+  
 }
   
 void setup() {
   Serial.begin(115200); delay(10);
   Serial.println();
   Serial.println("Starting...");  
+
+  pinMode(2, INPUT_PULLUP);
   
   float calibrationValue; // calibration value
   calibrationValue = 32.47; // uncomment this if you want to set this value in the sketch
   
-#if defined(ESP8266) || defined(ESP32)
+  #if defined(ESP8266) || defined(ESP32)
   //EEPROM.begin(512); // uncomment this if you use ESP8266 and want to fetch the value from eeprom
-#endif
+  #endif
   //EEPROM.get(calVal_eepromAdress, calibrationValue); // uncomment this if you want to fetch the value from eeprom
 
   LoadCell.begin();
@@ -105,19 +101,19 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
 
-//OLED Display
+  //OLED Display
 
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
       Serial.println(F("SSD1306 allocation failed"));
       for(;;);
     }
-//RTC
+  //RTC
    if (! rtc.begin()) {
     Serial.println("Could not find RTC! Check circuit.");
     while (1);
   }
 }
-//interrupt routine:
+  //interrupt routine:
 void dataReadyISR() {
     if (LoadCell.update()) {
       newDataReady = 1;
@@ -131,7 +127,7 @@ void loop() {
   display.setTextSize(1);
   display.setTextColor(1);
   display.setCursor(0, 0);
-  displayTime();
+  displayTimeTemp();
   // get smoothed value from the dataset:
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
@@ -142,16 +138,24 @@ void loop() {
       //Serial.print("  ");
       //Serial.println(millis() - t);
       if (reading != lastReading){
-      //displayWeight(reading); // Adatok kiírása a kijelzőre
-    }
-    lastReading = reading;
-    t = millis();
-    
+          }
+      lastReading = reading;
+      t = millis();
     }
   }
   displayWeight(reading);
-  display.display();
-  // receive command from serial terminal, send 't' to initiate tare operation: (a terminálra a t küldése után újra tárázik)
+  display.display(); 
+  // tare button with debounce GPIO2
+  boolean newState = digitalRead(2); // Get current button state.
+  boolean oldState = HIGH;
+  if((newState == LOW) && (oldState == HIGH)) { // Check if state changed from high to low (button press).
+    delay(5);// Short delay to debounce button.
+    newState = digitalRead(2);// Check if button is still low after debounce.
+    if(newState == LOW) {      // Yes, still low
+        LoadCell.tareNoDelay();
+     }
+   } 
+  // receive command from serial terminal, send 't' to initiate tare operation: (a terminálra a t küldése után újra tárázik) 
   if (Serial.available() > 0) {
     char inByte = Serial.read();
     if (inByte == 't') LoadCell.tareNoDelay();
