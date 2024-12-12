@@ -1,8 +1,6 @@
-
-
-
 /*
    -------------------------------------------------------------------------------------
+   GitHub: https://github.com/znyisztor77/Horgasz_cucc.git
    ESP32 mikrokontroller és HX711 súlymérő szenzorral épített időzítő horgászathoz
    Könyvtárak:
    -Adafruit SSD1306 /Kijelző
@@ -30,13 +28,11 @@ char daysOfTheWeek[7][12] = {"Vasarnap", "Hetfo", "Kedd", "Szerda", "Csutortok",
 #include <EEPROM.h>
 #endif
 
-
 #define SCREEN_WIDTH 128 // OLED display width, szélesség pixelben
 #define SCREEN_HEIGHT 64 // OLED display height, magaság pixelben
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
 
 const int HX711_dout = 16; //mcu > HX711 dout pin, ESP32 GPIO16
 const int HX711_sck = 4; //mcu > HX711 sck pin, ESP32 GPIO4
@@ -48,7 +44,7 @@ const int calVal_eepromAdress = 0;
 unsigned long t = 0;
 volatile boolean newDataReady;
 
-int reading;
+int readingWeight;
 int lastReading;
 
 //FishCount button debounce
@@ -86,12 +82,14 @@ void displayWeight(int weight){
   display.println(String(weight) + "g");
   
 }
-void displayFishcount(int fishcount){
+
+void displayFishCounter(int fishcount){
   //display.println();  
   display.setTextSize(2);  
   display.println(String(fishcount)+ " db");
   
 }
+
 void displayTimeTemp(){
   DateTime now = rtc.now();
   float temp = rtc.getTemperature();
@@ -151,7 +149,7 @@ void dataReadyISR() {
     if (LoadCell.update()) {
       newDataReady = 1;
     }
-  }
+}
   
 void loop() {
   
@@ -164,21 +162,20 @@ void loop() {
   // get smoothed value from the dataset:
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
-      reading = LoadCell.getData();
+      readingWeight = LoadCell.getData();
       newDataReady = 0;
       Serial.print("Load_cell output val: ");
-      Serial.println(reading);
+      Serial.println(readingWeight);
       //Serial.print("  ");
       //Serial.println(millis() - t);
-      if (reading != lastReading){
+      if (readingWeight != lastReading){
           }
-      lastReading = reading;
+      lastReading = readingWeight;
       t = millis();
     }
   }
-  displayWeight(reading);
-  
-   
+  displayWeight(readingWeight);
+     
   // Tare button with debounce GPIO2
   boolean newState = digitalRead(2); // Get current button state.
   boolean oldState = HIGH;
@@ -203,14 +200,14 @@ void loop() {
         count = count + 1;
      }
    }*/
-  int reading2 = digitalRead(fishCountButtonPin);
-  if (reading2 != fishCountlastButtonState) {
+  int readingButtonState = digitalRead(fishCountButtonPin);
+  if (readingButtonState != fishCountlastButtonState) {
     lastDebounceTime = millis();
   }
 
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading2 != fishCountButtonState) {
-      fishCountButtonState = reading2;
+    if (readingButtonState != fishCountButtonState) {
+      fishCountButtonState = readingButtonState;
 
       if (fishCountButtonState == LOW) {
         count = count + 1;
@@ -218,12 +215,11 @@ void loop() {
     }
   }
   
-  fishCountlastButtonState = reading2;
+  fishCountlastButtonState = readingButtonState;
 
-   //fishCountButton(count);
-   displayFishcount(count);
-  
-  
+  //fishCountButton(count);
+  displayFishCounter(count);
+    
   // receive command from serial terminal, send 't' to initiate tare operation: (a terminálra a t küldése után újra tárázik) 
   if (Serial.available() > 0) {
     char inByte = Serial.read();
