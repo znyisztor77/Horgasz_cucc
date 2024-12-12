@@ -51,21 +51,53 @@ volatile boolean newDataReady;
 int reading;
 int lastReading;
 
+//FishCount button debounce
+const int fishCountButtonPin = 15;
+int count = 0;
+int fishCountButtonState;           
+int fishCountlastButtonState = HIGH;
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+
+/*void fishCountButton(int count){
+  
+  int reading2 = digitalRead(fishCountButtonPin);
+  if (reading2 != fishCountlastButtonState) {
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (reading2 != fishCountButtonState) {
+      fishCountButtonState = reading2;
+
+      if (fishCountButtonState == LOW) {
+        count = count + 1;
+      }
+    }
+  }
+  
+  fishCountlastButtonState = reading2;
+}*/
+
 void displayWeight(int weight){
   display.println();
   display.println("Suly meres:");
   display.setTextSize(2);  
-  display.println(String(weight) + "g :" + " 0db");
+  display.println(String(weight) + "g");
   
 }
-
+void displayFishcount(int fishcount){
+  //display.println();  
+  display.setTextSize(2);  
+  display.println(String(fishcount)+ " db");
+  
+}
 void displayTimeTemp(){
   DateTime now = rtc.now();
   float temp = rtc.getTemperature();
-  //display.print("Current time:");
-  display.println(String(now.year(), DEC) + "/" + String(now.month(), DEC) + "/" + String(now.day(), DEC));
+  display.println(String(now.year(), DEC) + "/" + String(now.month(), DEC) + "/" + String(now.day(), DEC)+ "  " +String(now.hour(), DEC) + ":" + String(now.minute(), DEC) + ":" + String(now.second(), DEC) );
   //display.println(daysOfTheWeek[now.dayOfTheWeek()]);
-  display.println(String(now.hour(), DEC) + ":" + String(now.minute(), DEC) + ":" + String(now.second(), DEC));
+  //display.println(String(now.hour(), DEC) + ":" + String(now.minute(), DEC) + ":" + String(now.second(), DEC));
   display.println((String(temp)+" "+char(247)+"C"));
   
 }
@@ -76,6 +108,7 @@ void setup() {
   Serial.println("Starting...");  
 
   pinMode(2, INPUT_PULLUP);
+  pinMode(15, INPUT_PULLUP);
   
   float calibrationValue; // calibration value
   calibrationValue = 32.47; // uncomment this if you want to set this value in the sketch
@@ -144,8 +177,9 @@ void loop() {
     }
   }
   displayWeight(reading);
-  display.display(); 
-  // tare button with debounce GPIO2
+  
+   
+  // Tare button with debounce GPIO2
   boolean newState = digitalRead(2); // Get current button state.
   boolean oldState = HIGH;
   if((newState == LOW) && (oldState == HIGH)) { // Check if state changed from high to low (button press).
@@ -153,8 +187,43 @@ void loop() {
     newState = digitalRead(2);// Check if button is still low after debounce.
     if(newState == LOW) {      // Yes, still low
         LoadCell.tareNoDelay();
+        if(count != 0){
+          count = 0;
+          }
      }
-   } 
+   }
+  /* 
+  // Fishcount button GPIO15 
+  boolean newState2 = digitalRead(15); // Get current button state.
+  boolean oldState2 = HIGH;
+  if((newState2 == LOW) && (oldState2 == HIGH)) { // Check if state changed from high to low (button press).
+    delay(50);// Short delay to debounce button.
+    newState2 = digitalRead(15);// Check if button is still low after debounce.
+    if(newState2 == LOW) {      // Yes, still low
+        count = count + 1;
+     }
+   }*/
+  int reading2 = digitalRead(fishCountButtonPin);
+  if (reading2 != fishCountlastButtonState) {
+    lastDebounceTime = millis();
+  }
+
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (reading2 != fishCountButtonState) {
+      fishCountButtonState = reading2;
+
+      if (fishCountButtonState == LOW) {
+        count = count + 1;
+      }
+    }
+  }
+  
+  fishCountlastButtonState = reading2;
+
+   //fishCountButton(count);
+   displayFishcount(count);
+  
+  
   // receive command from serial terminal, send 't' to initiate tare operation: (a terminálra a t küldése után újra tárázik) 
   if (Serial.available() > 0) {
     char inByte = Serial.read();
@@ -165,5 +234,5 @@ void loop() {
   if (LoadCell.getTareStatus() == true) {
     Serial.println("Tare complete");
   }
-  
+  display.display();
 }
