@@ -1,3 +1,4 @@
+
 /*
    -------------------------------------------------------------------------------------
    GitHub: https://github.com/znyisztor77/Horgasz_cucc.git
@@ -103,23 +104,23 @@ void displayMax(int weight){
   }
 
 void displayStopWatch(int h, int m, long int s){
-      if(hours<10){
-        display.print("0"+String(hours)+ ":");
+      if(h<10){
+        display.print("0"+String(h)+ ":");
       }
       
-      else{ display.print(String(hours)+ ":");
+      else{ display.print(String(h)+ ":");
       }
-      if(minutes<10){
-        display.print("0"+String(minutes)+ ":");
-      }
-      
-      else{ display.print(String(minutes)+ ":");
-      }
-      if(seconds<10){
-        display.print("0"+String(seconds));
+      if(m<10){
+        display.print("0"+String(m)+ ":");
       }
       
-      else{ display.print(String(seconds));
+      else{ display.print(String(m)+ ":");
+      }
+      if(s<10){
+        display.print("0"+String(s));
+      }
+      
+      else{ display.print(String(s));
       }
 }
 
@@ -240,13 +241,12 @@ void loop(){
   unsigned long currentMillis = millis();
   
   if(weightState < readingWeight){
-    measureState = false;
-    
+    measureState = false;    
   }
   else{
     measureState = true;
-  }
-    
+    }
+ 
   if(measureState == false){
     if(currentMillis - previousMillis >= interval){
       previousMillis = currentMillis;
@@ -267,13 +267,9 @@ void loop(){
   }
   
   displayStopWatch(hours, minutes, seconds);
-  if(measureState==false){
-   display.println();
-  }
-  if (measureState == true)
-  {
-    display.println();
-    display.println("Stopped...");
+ 
+  if ((hours > 0 || minutes > 0 || seconds > 0)&& measureState == true)
+  {    
     hoursStop = hours;
     minutesStop = minutes;
     secondsStop = seconds;    
@@ -282,27 +278,10 @@ void loop(){
     minutes=0;
     seconds=0;
   }
- 
- //displayStopWatch(hoursStop, minutesStop, secondsStop );  
- if(hoursStop<10){
-        display.print("0"+String(hoursStop)+ ":");
-      }
-      
-      else{ display.print(String(hoursStop)+ ":");
-      }
-      if(minutes<10){
-        display.print("0"+String(minutesStop)+ ":");
-      }
-      
-      else{ display.print(String(minutesStop)+ ":");
-      }
-      if(secondsStop<10){
-        display.print("0"+String(secondsStop));
-      }
-      
-      else{ display.print(String(secondsStop));
-      }
-//-----------------------------------------------------------------------
+  display.println();
+  display.println("Stoped...");
+  displayStopWatch(hoursStop, minutesStop, secondsStop );  
+ //-----------------------------------------------------------------------
   
   // receive command from serial terminal, send 't' to initiate tare operation: (a terminálra a t küldése után újra tárázik) 
   if (Serial.available() > 0) {
