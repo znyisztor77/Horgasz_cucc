@@ -25,30 +25,31 @@ typedef struct {
 } MenuItem;
 
 MenuItem menu[] = {
-    {"Fomenu",       -1, NORMAL, {1, 2, 3}},
-    {"Almenu 1",      0, NORMAL, {4, 5, 6}},
-    {"Almenu 2",      0, NORMAL, {7, 8, 9}},
-    {"Almenu 3",      0, NORMAL, {10, 11, 12}},
+    {"Menu",              -1, NORMAL, {1, 2, 3}},
+    {"Vevo/Jelado",        0, NORMAL, {4, 5, 6}},
+    {"Stopper(Manualis)",  0, NORMAL, {7, 8, 9}},
+    {"Idozito(Manualis)",  0, NORMAL, {10, 11, 12}},
     
-    {"Almenu 1.1",    1, NORMAL, {-1, -1, 13}}, // BACK hozzáadva
-    {"Almenu 1.2",    1, NORMAL, {-1, -1, 14}}, // BACK hozzáadva
-    {"Exit",          1, EXIT,   {0}},      // Exit from Almenu 1
+    {"Stopper",    1, NORMAL, {13, -1, -1}}, // Vevő Stopper
+    {"Idozito",    1, NORMAL, {14, -1, -1}}, // Vevő Időzítő
+    {"Kilepes",    1, EXIT,   {0}},      // Kilépés a Vevő/Jeladó menüből
     
-    {"Almenu 2.1",    2, NORMAL, {-1, -1, 15}}, // BACK hozzáadva
-    {"Almenu 2.2",    2, NORMAL, {-1, -1, 16}}, // BACK hozzáadva
-    {"Exit",          2, EXIT,   {0}},      // Exit from Almenu 2
+    {"Manual Stopper", 2, NORMAL, {15, -1, -1}}, // Stopper kézi indítás
+    {"Almenu 2.2",     2, NORMAL, {16, -1, -1}}, // BACK hozzáadva
+    {"Kilepes",        2, EXIT,   {0}},      // Kilépés a kézi stopperből
     
-    {"Almenu 3.1",    3, NORMAL, {-1, -1, 17}}, // BACK hozzáadva
-    {"Almenu 3.2",    3, NORMAL, {-1, -1, 18}}, // BACK hozzáadva
-    {"Exit",          3, EXIT,   {0}},      // Exit from Almenu 3
+    {"Manual Timer", 3, NORMAL, {17, -1, -1}}, // Időzítő kézi indítás
+    {"Almenu 3.2",   3, NORMAL, {18, -1, -1}}, // BACK hozzáadva
+    {"Kilepes",      3, EXIT,   {0}},      // Kilépés a kézi időzítőből
 
    
     
-    {"Back", 5, BACK, {-1, -1, 1}}, // Back from Almenu 1.2 // Új menüpont
-    {"Back", 7, BACK, {-1, -1, 2}}, // Back from Almenu 2.1 // Új menüpont
-    {"Back", 8, BACK, {-1, -1, 2}}, // Back from Almenu 2.2 // Új menüpont
-    {"Back", 10, BACK, {-1, -1, 3}}, // Back from Almenu 3.1 // Új menüpont
-    {"Back", 11, BACK, {-1, -1, 3}}  // Back from Almenu 3.2 // Új menüpont
+    {"Back", 4, BACK, {0}, // Back from Almenu 1.1 // Új menüpont
+    {"Back", 5, BACK, {0}}, // Back from Almenu 1.2 // Új menüpont
+    {"Back", 7, BACK, {0}}, // Back from Almenu 2.1 // Új menüpont
+    {"Back", 8, BACK, {0}}, // Back from Almenu 2.2 // Új menüpont
+    {"Back", 10, BACK, {0}}, // Back from Almenu 3.1 // Új menüpont
+    {"Back", 11, BACK, {0}}  // Back from Almenu 3.2 // Új menüpont
 
 };
 
@@ -65,6 +66,7 @@ void bootAnimation() {
 }
 int currentMenu = 0;
 int selectedIndex = 0;
+
 
 void setup() {
     Serial.begin(115200);
@@ -85,7 +87,7 @@ void loop() {
     int maxIndex = 2; // Alapértelmezett maximum index
 
     if(currentMenu == 4 || currentMenu == 5 || currentMenu == 7 || currentMenu == 8 || currentMenu == 10 || currentMenu == 11) {
-        maxIndex = 1;
+        maxIndex = 0;
     }
 
     if (newPos > lastPos) {
@@ -97,7 +99,9 @@ void loop() {
         drawMenu();
     }
     lastPos = newPos;
-
+    
+    
+    
     if (digitalRead(ENCODER_BUTTON) == LOW) {
         unsigned long startTime = millis(); // Elmentjük a gombnyomás kezdetének idejét
 
@@ -105,23 +109,28 @@ void loop() {
             if (millis() - startTime > 1000) { // 1 másodperc eltelt
                 currentMenu = 0; // Vissza a főmenübe
                 selectedIndex = 0;
-                delay(50);
                 drawMenu();
+                delay(1000);             
                 while (digitalRead(ENCODER_BUTTON) == LOW); // Várjuk meg, amíg elengedik a gombot
                 return; // Kilépünk a loop-ból
-            }
-        }
+             }
+          }
+          
+          
+          
+      
 
         int nextMenu = menu[currentMenu].children[selectedIndex];
         if (nextMenu != -1) {
             if (menu[nextMenu].type == EXIT) {
                 currentMenu = 0; // Vissza a főmenübe
-            } else if (menu[nextMenu].type == BACK) {
-                currentMenu = menu[currentMenu].parent;
-                if(currentMenu == -1) currentMenu = 0; // Megakadályozza az érvénytelen menübe lépést
-            }
+            } 
             else {
                 currentMenu = nextMenu;
+            }
+            if (menu[nextMenu].type == BACK) {
+                currentMenu = menu[currentMenu].parent;
+                if(currentMenu == -1) currentMenu = 0; // Megakadályozza az érvénytelen menübe lépést
             }
             selectedIndex = 0;
         }
@@ -131,7 +140,10 @@ void loop() {
         while (digitalRead(ENCODER_BUTTON) == LOW);
         delay(50);
     }
-}
+
+  }
+
+
 
 void drawMenu() {
     display.clearDisplay();
