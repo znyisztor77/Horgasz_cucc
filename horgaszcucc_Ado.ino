@@ -1,11 +1,14 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
+#include <HTTPClient.h> //ESP32
+#include <WiFi.h> //ESP32
+//#include <ESP8266WiFi.h>
+//#include <ESP8266HTTPClient.h>
+
 
 const char* ssid = "ESP32_AP";       // ESP32 Access Point neve
 const char* password = "12345678";  // ESP32 Access Point jelszava
 
 const char* serverUrl = "http://192.168.4.1/update"; // Az ESP32 IP-címe (alapértelmezett 192.168.4.1)
-const int switchPin = D4; // Kapcsoló GPIO pinje
+const int switchPin = 2; // Kapcsoló GPIO pinje
 
 void setup() {
   Serial.begin(115200);
@@ -21,7 +24,7 @@ void setup() {
 }
 
 void loop() {
-  static int prevState = LOW;
+  static int prevState = HIGH;
   int currentState = digitalRead(switchPin);
 
   if (currentState != prevState) {
