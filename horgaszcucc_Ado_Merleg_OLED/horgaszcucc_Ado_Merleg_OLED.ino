@@ -1,5 +1,5 @@
-#include <HTTPClient.h> //ESP32
-#include <WiFi.h> //ESP32
+#include <HTTPClient.h>  //ESP32
+#include <WiFi.h>        //ESP32
 //#include <ESP8266WiFi.h>
 //#include <ESP8266HTTPClient.h>
 #include "Arduino.h"
@@ -13,13 +13,13 @@
 #define CLK 18
 HX711 scale(DOUT, CLK);
 
-const char* ssid = "ESP32_AP";       // ESP32 Access Point neve
+const char* ssid = "ESP32_AP";      // ESP32 Access Point neve
 const char* password = "12345678";  // ESP32 Access Point jelszava
 
-const char* serverUrl = "http://192.168.4.1/update"; // Az ESP32 IP-címe (alapértelmezett 192.168.4.1)
-const int switchPin = 2; // Kapcsoló GPIO pinje
+const char* serverUrl = "http://192.168.4.1/update";  // Az ESP32 IP-címe (alapértelmezett 192.168.4.1)
+//const int switchPin = 2; // Kapcsoló GPIO pinje
 
-int tareButton = 2;  // this button will be used to reset the scale to 0.
+const int tareButton = 2;  // this button will be used to reset the scale to 0.
 String myString;
 String cmessage;  // complete message
 char buff[10];
@@ -31,7 +31,7 @@ SimpleTimer timer;
 // for the OLED display
 
 #define SCREEN_WIDTH 128  // OLED display width, in pixels
-#define SCREEN_HEIGHT 64  // OLED display height, in pixels
+#define SCREEN_HEIGHT 32  // OLED display height, in pixels
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET -1  // Reset pin # (or -1 if sharing Arduino reset pin)
@@ -61,9 +61,9 @@ void setup() {
 }
 
 void loop() {
-  
 
-  timer.run();  // Initiates SimpleTimer
+
+  timer.run();                          // Initiates SimpleTimer
   scale.set_scale(calibration_factor);  //Adjust to this calibration factor
 
   weight = scale.get_units(15);  //5
@@ -78,11 +78,23 @@ void loop() {
     scale.set_scale();
     scale.tare();  //Reset the scale to 0
   }
+
+  static int prevState = HIGH;
+  int currentState = digitalRead(tareButton);
+  //int currentState = HIGH;
+
+  int readWeight;
+  readWeight = (int)weight;
+  Serial.println("Olvasott érték: " + String(readWeight));
+
   
-  int kapcsol;
-  kapcsol = (int)weight;
-  //static int prevState = LOW;
-  //int currentState = digitalRead(switchPin);
+  /*if (readWeight > 5) {
+    currentState == LOW;
+  }
+  //else{currentState == LOW;}
+  */
+
+  Serial.println("Current állapot: " + String(currentState));
 
   if (currentState != prevState) {
     prevState = currentState;
@@ -105,13 +117,17 @@ void loop() {
     }
   }
   delay(100);
+}
+
+void getSendData() {
+  // Oled display
   display.clearDisplay();
   display.setTextSize(1);
   display.setCursor(0, 0);  // column row
-  display.print("Weight:");
+  display.print("Weight: ");
 
   display.setTextSize(1);
-  display.setCursor(0, 30);
+  //display.setCursor(0, 30);
   display.print(myString);
 
   display.display();
