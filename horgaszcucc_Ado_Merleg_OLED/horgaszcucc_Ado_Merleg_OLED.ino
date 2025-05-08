@@ -26,6 +26,12 @@ char buff[10];
 float weight;
 float calibration_factor = 1500;  // for me this vlaue works just perfect 206140
 
+//static int prevState = HIGH;
+//int currentState = digitalRead(tareButton);
+static int prevState;
+int currentState;
+int readWeight;
+
 SimpleTimer timer;
 
 // for the OLED display
@@ -79,20 +85,22 @@ void loop() {
     scale.tare();  //Reset the scale to 0
   }
 
-  static int prevState = HIGH;
-  int currentState = digitalRead(tareButton);
+  //static int prevState = HIGH;
+  //int currentState = digitalRead(tareButton);
   //int currentState = HIGH;
 
-  int readWeight;
+  //int readWeight;
   readWeight = (int)weight;
   Serial.println("Olvasott érték: " + String(readWeight));
 
   
-  /*if (readWeight > 5) {
-    currentState == LOW;
+  if (readWeight > 5) {
+    Serial.println("Nagyobb mint öt!!!!");
+    prevState = true;
+    currentState = false;
   }
-  //else{currentState == LOW;}
-  */
+  else{currentState = true; prevState = false;}
+  
 
   Serial.println("Current állapot: " + String(currentState));
 

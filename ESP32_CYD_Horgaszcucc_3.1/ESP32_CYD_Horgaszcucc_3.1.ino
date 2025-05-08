@@ -9,6 +9,7 @@ WebServer server(80);
 
 lv_obj_t *btn_exit;
 bool isTransmitterConnected = false;
+static uint32_t count = 1;
 
 void handleUpdate() {
   if (server.hasArg("state")) {
@@ -38,7 +39,7 @@ void handleRoot() {
 }
 
 void handleState() {
-  server.send(200, "text/plain", !switchState ? "Nincs benyomva" : "Benyomva");
+  server.send(200, "text/plain", switchState ? "Nincs benyomva" : "Benyomva");
 }
 
 void setup() {
@@ -87,6 +88,12 @@ void main_screen() {
     lv_obj_clean(lv_screen_active());
     go_timer();
   });
+
+  String halSzoveg = "Fogott hal: " + String((int)count-1);
+  lv_obj_t *halDb_text = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(halDb_text, &lv_font_montserrat_14, LV_PART_MAIN);
+  lv_label_set_text(halDb_text, halSzoveg.c_str());
+  lv_obj_align(halDb_text, LV_ALIGN_TOP_MID, 0, 220);
 }
 //////////////////// Exit Button////////////////////////////
 lv_obj_t *createExitButton() {
@@ -143,7 +150,7 @@ static void wifi_status_update_cb(lv_timer_t *t) {
 
 
 static void update_receiver_cb(lv_timer_t *t) {
-  if (switchState) {
+  if (!switchState) {
     elapsed_receiver_ms += 1000;
     uint32_t sec = elapsed_receiver_ms / 1000;
     uint32_t min = sec / 60;
@@ -227,7 +234,7 @@ static lv_obj_t *lbl_time_receiver_timer = nullptr;
 static uint32_t receiver_timer_sec = 0;
 
 static void update_receiver_timer_cb(lv_timer_t *) {
-  if (switchState && receiver_timer_sec > 0) {
+  if (!switchState && receiver_timer_sec > 0) {
     receiver_timer_sec--;
     uint32_t sec = receiver_timer_sec % 60;
     uint32_t min = (receiver_timer_sec / 60) % 60;
@@ -240,7 +247,7 @@ static void update_receiver_timer_cb(lv_timer_t *) {
 
 void go_receiverTimer(void) {
   btn_exit = createExitButton();
-  
+
   lbl_wifi_state = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_wifi_state, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_align(lbl_wifi_state, LV_TEXT_ALIGN_CENTER, 0);
@@ -262,7 +269,7 @@ void go_receiverTimer(void) {
     lv_obj_set_style_text_color(lbl_wifi_symbol, lv_color_hex(0x00ff00), LV_PART_MAIN);
     lv_obj_align(lbl_wifi_symbol, LV_ALIGN_TOP_MID, 0, 10);*/
 
-    /*lv_obj_t *wifi_text = lv_label_create(lv_screen_active());
+  /*lv_obj_t *wifi_text = lv_label_create(lv_screen_active());
     lv_label_set_text(wifi_text, "Nincs kapcsolat az adoval!");
     lv_obj_set_style_text_color(wifi_text, lv_color_hex(0xff0000), LV_PART_MAIN);*/
   /*} else {
@@ -341,6 +348,8 @@ static lv_timer_t *stopper_timer = nullptr;
 static lv_obj_t *lbl_time_stopper = nullptr;
 static bool running = false;
 static uint32_t elapsed_ms = 0;
+//static uint32_t count = 1;
+static lv_obj_t *lbl_hal = nullptr;
 
 static void update_stopper_cb(lv_timer_t *t) {
   if (running) {
@@ -400,6 +409,31 @@ void go_stopper(void) {
       lv_label_set_text(lbl_time_stopper, "00:00:00");
     },
     LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t *btn_halCount = lv_button_create(btn_container);
+  //lv_obj_set_pos(btn_reset, 120, 100);
+  lv_obj_set_size(btn_halCount, 130, 40);
+  lv_obj_t *lbl_hal = lv_label_create(btn_halCount);
+  lv_label_set_text(lbl_hal, "Hal?");
+  lv_obj_center(lbl_hal);
+  /*lv_obj_add_event_cb(
+    btn_halCount,
+    [](lv_event_t *e) {
+      lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
+      lv_obj_t *label = lv_obj_get_child(btn, 0);
+      lv_label_set_text_fmt(lbl_hal, "%"LV_PRIu32, count);
+      count++;
+    },
+    LV_EVENT_CLICKED, nullptr); */
+
+  lv_obj_add_event_cb(
+    btn_halCount,
+    [](lv_event_t *e) {
+      lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
+      count++;
+    },
+    LV_EVENT_CLICKED, lbl_hal);
 
   stopper_timer = lv_timer_create(update_stopper_cb, 1000, nullptr);
 }
