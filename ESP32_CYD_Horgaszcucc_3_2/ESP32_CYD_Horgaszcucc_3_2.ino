@@ -148,8 +148,7 @@ static void wifi_status_update_cb(lv_timer_t *t) {
   }
 }
 
-
-static void update_receiver_cb(lv_timer_t *t) {
+static void update_receiver_stopper_cb(lv_timer_t *t) {
   if (!switchState) {
     elapsed_receiver_ms += 1000;
     uint32_t sec = elapsed_receiver_ms / 1000;
@@ -178,32 +177,6 @@ void go_receiverStopper(void) {
     lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
   }
-
-  /*if(WiFi.softAPgetStationNum() > 0){*/
-  /*if(isTransmitterConnected){
-    lv_obj_t *lbl_wifi_symbol = lv_label_create(lv_screen_active());
-    lv_obj_set_style_text_font(lbl_wifi_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
-    lv_obj_set_style_text_align(lbl_wifi_symbol, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(lbl_wifi_symbol, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(lbl_wifi_symbol, lv_color_hex(0x00ff00), LV_PART_MAIN);
-    lv_obj_align(lbl_wifi_symbol, LV_ALIGN_TOP_MID, 0, 10);
-
-    /*lv_obj_t *wifi_text = lv_label_create(lv_screen_active());
-    lv_label_set_text(wifi_text, "Nincs kapcsolat az adoval!");
-    lv_obj_set_style_text_color(wifi_text, lv_color_hex(0xff0000), LV_PART_MAIN);*/
-  /*}
-  else{
-    lv_obj_t *wifi_text = lv_label_create(lv_screen_active());
-    lv_label_set_text(wifi_text, "Nincs kapcsolat az adoval!");
-    lv_obj_set_style_text_color(wifi_text, lv_color_hex(0xff0000), LV_PART_MAIN);*/
-
-  /*lv_obj_t *lbl_wifi_symbol = lv_label_create(lv_screen_active());
-    lv_obj_set_style_text_font(lbl_wifi_symbol, &lv_font_montserrat_36, LV_PART_MAIN);
-    lv_obj_set_style_text_align(lbl_wifi_symbol, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(lbl_wifi_symbol, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(lbl_wifi_symbol, lv_color_hex(0x00ff00), LV_PART_MAIN);
-    lv_obj_align(lbl_wifi_symbol, LV_ALIGN_TOP_MID, 0, 10);*/
-  /*}*/
 
   lbl_time_receiver = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN);
@@ -238,8 +211,7 @@ void go_receiverStopper(void) {
     },
     LV_EVENT_CLICKED, label_fish);
 
-  receiver_stopper_timer = lv_timer_create(update_receiver_cb, 1000, NULL);
-  //lv_timer_create([](lv_timer_t *) {updateWiFiConnectionState(); },1000, NULL);
+  receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
   lv_timer_create(wifi_status_update_cb, 1000, NULL);
 }
 
@@ -277,7 +249,6 @@ void go_receiverTimer(void) {
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
   }
 
-
   lbl_time_receiver_timer = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_receiver_timer, &lv_font_montserrat_36, LV_PART_MAIN);
   lv_label_set_text(lbl_time_receiver_timer, "00:00:00");
@@ -297,8 +268,8 @@ void go_receiverTimer(void) {
     LV_EVENT_CLICKED, NULL);
 
   lv_obj_t *btn_plus = lv_button_create(lv_screen_active());
-  lv_obj_set_pos(btn_plus, 20, 180);
-  lv_obj_set_size(btn_plus, 120, 40);
+  lv_obj_set_pos(btn_plus, 20, 120);
+  lv_obj_set_size(btn_plus, 60, 40);
   lv_obj_t *lbl_plus = lv_label_create(btn_plus);
   lv_label_set_text(lbl_plus, "+1 perc");
   lv_obj_center(lbl_plus);
@@ -315,8 +286,8 @@ void go_receiverTimer(void) {
     LV_EVENT_CLICKED, NULL);
 
   lv_obj_t *btn_minus = lv_button_create(lv_screen_active());
-  lv_obj_set_pos(btn_minus, 180, 180);
-  lv_obj_set_size(btn_minus, 120, 40);
+  lv_obj_set_pos(btn_minus, 240, 120);
+  lv_obj_set_size(btn_minus, 60, 40);
   lv_obj_t *lbl_minus = lv_label_create(btn_minus);
   lv_label_set_text(lbl_minus, "-1 perc");
   lv_obj_center(lbl_minus);
@@ -332,6 +303,21 @@ void go_receiverTimer(void) {
     },
     LV_EVENT_CLICKED, NULL);
 
+  lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_fishCount, 100, 180);
+  lv_obj_set_size(btn_fishCount, 120, 40);
+  lv_obj_t *label_fish = lv_label_create(btn_fishCount);
+  lv_label_set_text(label_fish, "Hal ?");
+  lv_obj_center(label_fish);
+  lv_obj_add_event_cb(
+    btn_fishCount,
+    [](lv_event_t *e) {
+      lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
+      count++;
+    },
+    LV_EVENT_CLICKED, label_fish);
+
   receiver_timer = lv_timer_create(update_receiver_timer_cb, 1000, NULL);
   lv_timer_create(wifi_status_update_cb, 1000, NULL);
 }
@@ -341,6 +327,7 @@ static lv_timer_t *stopper_timer = nullptr;
 static lv_obj_t *lbl_time_stopper = nullptr;
 static bool running = false;
 static uint32_t elapsed_ms = 0;
+//static uint32_t count = 1;
 static lv_obj_t *lbl_hal = nullptr;
 
 static void update_stopper_cb(lv_timer_t *t) {
@@ -357,24 +344,39 @@ static void update_stopper_cb(lv_timer_t *t) {
 }
 
 void go_stopper(void) {
-  btn_exit = createExitButton();
+  //btn_exit = createExitButton();
+  lv_obj_t *exit_btn_local = createExitButton();  // Lehet lokális is
+  lv_obj_add_event_cb(
+    exit_btn_local, [](lv_event_t *e) {
+      if (stopper_timer) {  // Ellenőrizzük, hogy létezik-e a timer
+        lv_timer_del(stopper_timer);
+        stopper_timer = nullptr;  // Fontos a nullázás
+      }
+      // Ha a 'running' állapotot is resetelni kell kilépéskor:
+      running = false;
+      elapsed_ms = 0; // Ha az időt is nullázni kell
+
+      lv_obj_clean(lv_screen_active());
+      main_screen();
+    },
+    LV_EVENT_CLICKED, NULL);
 
   //gombokat középre
   lbl_time_stopper = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_stopper, &lv_font_montserrat_36, LV_PART_MAIN);
   lv_label_set_text(lbl_time_stopper, "00:00:00");
   lv_obj_align(lbl_time_stopper, LV_ALIGN_TOP_MID, 0, 30);
-  
+
   //Gomb konténer
-  lv_obj_t *btn_container = lv_obj_create(lv_screen_active());
+  /*lv_obj_t *btn_container = lv_obj_create(lv_screen_active());
   lv_obj_set_size(btn_container, 300, 120);
   lv_obj_center(btn_container);
   lv_obj_align(btn_container, LV_ALIGN_TOP_MID, 0, 100);       // képernyő közepére
   lv_obj_set_flex_flow(btn_container, LV_FLEX_FLOW_ROW_WRAP);  // vízszintes elrendezés töréssel
   lv_obj_set_style_pad_row(btn_container, 10, 0);
-
-  lv_obj_t *btn_start_stop = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_start_stop, 10, 100);
+  */
+  lv_obj_t *btn_start_stop = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_start_stop, 20, 120);
   lv_obj_set_size(btn_start_stop, 120, 40);
   lv_obj_t *lbl_start_stop = lv_label_create(btn_start_stop);
   lv_label_set_text(lbl_start_stop, "Start");
@@ -389,8 +391,8 @@ void go_stopper(void) {
     },
     LV_EVENT_CLICKED, nullptr);
 
-  lv_obj_t *btn_reset = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_reset, 120, 100);
+  lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_reset, 180, 120);
   lv_obj_set_size(btn_reset, 120, 40);
   lv_obj_t *lbl_r = lv_label_create(btn_reset);
   lv_label_set_text(lbl_r, "Reset");
@@ -403,32 +405,23 @@ void go_stopper(void) {
     },
     LV_EVENT_CLICKED, nullptr);
 
-  lv_obj_t *btn_halCount = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_reset, 120, 100);
-  lv_obj_set_size(btn_halCount, 120, 40);
-  lv_obj_t *lbl_hal = lv_label_create(btn_halCount);
-  lv_label_set_text(lbl_hal, "Hal ?");
-  lv_obj_center(lbl_hal);
-  /*lv_obj_add_event_cb(
-    btn_halCount,
-    [](lv_event_t *e) {
-      lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
-      lv_obj_t *label = lv_obj_get_child(btn, 0);
-      lv_label_set_text_fmt(lbl_hal, "%"LV_PRIu32, count);
-      count++;
-    },
-    LV_EVENT_CLICKED, nullptr); */
-
+  lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_fishCount, 100, 180);
+  lv_obj_set_size(btn_fishCount, 120, 40);
+  lv_obj_t *label_fish = lv_label_create(btn_fishCount);
+  lv_label_set_text(label_fish, "Hal ?");
+  lv_obj_center(label_fish);
   lv_obj_add_event_cb(
-    btn_halCount,
+    btn_fishCount,
     [](lv_event_t *e) {
       lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
       lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
       count++;
     },
-    LV_EVENT_CLICKED, lbl_hal);
+    LV_EVENT_CLICKED, label_fish);
 
   stopper_timer = lv_timer_create(update_stopper_cb, 1000, nullptr);
+  lv_timer_ready(stopper_timer);
 }
 
 //////////////////// Timer ////////////////////////////
@@ -438,12 +431,12 @@ static uint32_t timer_duration_sec = 0;
 static bool timer_running = false;
 
 static void update_timer_cb(lv_timer_t *) {
+  //if (timer_running && timer_duration_sec > 0) {
   if (timer_running && timer_duration_sec > 0) {
     timer_duration_sec--;
     uint32_t sec = timer_duration_sec % 60;
     uint32_t min = (timer_duration_sec / 60) % 60;
     uint32_t hour = timer_duration_sec / 3600;
-
     char buf[16];
     sprintf(buf, "%02u:%02u:%02u", hour, min, sec);
     lv_label_set_text(lbl_time_timer, buf);
@@ -451,7 +444,23 @@ static void update_timer_cb(lv_timer_t *) {
 }
 
 void go_timer(void) {
-  btn_exit = createExitButton();
+
+
+  //btn_exit = createExitButton();
+  lv_obj_t *exit_btn_local = createExitButton();  // Lehet lokális is
+  lv_obj_add_event_cb(
+    exit_btn_local, [](lv_event_t *e) {
+      if (timer_timer) {  // Ellenőrizzük, hogy létezik-e a timer
+        lv_timer_del(timer_timer);
+        timer_timer = nullptr;  // Fontos a nullázás
+      }
+      // Ha a 'running' állapotot is resetelni kell kilépéskor:
+      timer_running = false;
+      timer_duration_sec = 0;  // Ha az időt is nullázni kell
+      lv_obj_clean(lv_screen_active());
+      main_screen();
+    },
+    LV_EVENT_CLICKED, NULL);
 
   lbl_time_timer = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_timer, &lv_font_montserrat_36, LV_PART_MAIN);
@@ -459,27 +468,32 @@ void go_timer(void) {
   lv_obj_align(lbl_time_timer, LV_ALIGN_TOP_MID, 0, 30);
 
   // Gomb konténer létrehozása
+  /*
   lv_obj_t *btn_container = lv_obj_create(lv_screen_active());
   lv_obj_set_size(btn_container, 300, 120);
   lv_obj_center(btn_container);
   lv_obj_align(btn_container, LV_ALIGN_TOP_MID, 0, 100);       // képernyő közepére
   lv_obj_set_flex_flow(btn_container, LV_FLEX_FLOW_ROW_WRAP);  // vízszintes elrendezés töréssel
   lv_obj_set_style_pad_row(btn_container, 10, 0);
+  */
 
-  lv_obj_t *btn_start = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_start, 10, 60);
-  lv_obj_set_size(btn_start, 120, 40);
-  lv_obj_t *lbl_start = lv_label_create(btn_start);
-  lv_label_set_text(lbl_start, "Start/Stop");
+  lv_obj_t *btn_start_stop = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_start_stop, 20, 80);
+  lv_obj_set_size(btn_start_stop, 120, 40);
+  lv_obj_t *lbl_start = lv_label_create(btn_start_stop);
+  lv_label_set_text(lbl_start, "Start");
   lv_obj_center(lbl_start);
   lv_obj_add_event_cb(
-    btn_start, [](lv_event_t *e) {
+    btn_start_stop, [](lv_event_t *e) {
       timer_running = !timer_running;
+      lv_obj_t *btn = (lv_obj_t *)lv_event_get_target(e);
+      lv_obj_t *label = lv_obj_get_child(btn, 0);
+      lv_label_set_text(label, timer_running ? "Stop" : "Start");
     },
     LV_EVENT_CLICKED, NULL);
 
-  lv_obj_t *btn_reset = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_reset, 120, 60);
+  lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_reset, 180, 80);
   lv_obj_set_size(btn_reset, 120, 40);
   lv_obj_t *lbl_reset = lv_label_create(btn_reset);
   lv_label_set_text(lbl_reset, "Reset");
@@ -492,8 +506,8 @@ void go_timer(void) {
     },
     LV_EVENT_CLICKED, NULL);
 
-  lv_obj_t *btn_plus = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_plus, 10, 110);
+  lv_obj_t *btn_plus = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_plus, 20, 130);
   lv_obj_set_size(btn_plus, 120, 40);
   lv_obj_t *lbl_plus = lv_label_create(btn_plus);
   lv_label_set_text(lbl_plus, "+1 perc");
@@ -510,8 +524,8 @@ void go_timer(void) {
     },
     LV_EVENT_CLICKED, NULL);
 
-  lv_obj_t *btn_minus = lv_button_create(btn_container);
-  //lv_obj_set_pos(btn_minus, 120, 110);
+  lv_obj_t *btn_minus = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_minus, 180, 130);
   lv_obj_set_size(btn_minus, 120, 40);
   lv_obj_t *lbl_minus = lv_label_create(btn_minus);
   lv_label_set_text(lbl_minus, "-1 perc");
@@ -528,11 +542,28 @@ void go_timer(void) {
     },
     LV_EVENT_CLICKED, NULL);
 
-  timer_timer = lv_timer_create(update_timer_cb, 1000, NULL);
+  lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
+  lv_obj_set_pos(btn_fishCount, 100, 180);
+  lv_obj_set_size(btn_fishCount, 120, 40);
+  lv_obj_t *label_fish = lv_label_create(btn_fishCount);
+  lv_label_set_text(label_fish, "Hal ?");
+  lv_obj_center(label_fish);
+  lv_obj_add_event_cb(
+    btn_fishCount,
+    [](lv_event_t *e) {
+      lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
+      count++;
+    },
+    LV_EVENT_CLICKED, label_fish);
+
+  timer_timer = lv_timer_create(update_timer_cb, 1000, nullptr);
+  lv_timer_ready(timer_timer);
 }
 
 void loop() {
   server.handleClient();
   lv_task_handler();
-  delay(5);
+  lv_tick_inc(5);
+  delay(100);
 }

@@ -1,0 +1,267 @@
+Rendben, nézzük meg részletesen, hogyan lehet a wifi_status_update_cb timerét (és általában a képernyőspecifikus timereket) kezelni, hogy elkerüljük a duplikációt és a felesleges futást.
+
+A Probléma Gyökere
+
+A jelenlegi kódban, ha például a go_receiverStopper() függvényből a main_screen()-re lépsz, majd onnan a go_receiverTimer()-be, a wifi_status_update_cb-hez tartozó timer potenciálisan többször is létrehozódhat és futhat egyszerre, ha nem törlöd őket kilépéskor. Ez felesleges erőforrás-használat és potenciális hibaforrás.
+
+A Javasolt Megoldás Lépései és Kódja
+
+A cél egy olyan rendszer, ahol:
+
+Minden képernyőhöz (almenühöz) tartozó timer csak akkor fut, amikor az adott képernyő aktív.
+Amikor elhagyunk egy képernyőt és visszatérünk a főmenübe (main_screen), az adott képernyőhöz tartozó összes specifikus timer leáll és törlődik.
+A wifi_status_update_cb-hez tartozó timer (nevezzük shared_wifi_status_timer-nek, mivel több képernyő is használhatja) csak egyszer jön létre, amikor szükség van rá (azaz amikor egy "Vevő" típusú képernyő aktív), és törlődik, amikor már nincs rá szükség (azaz visszatértünk a main_screen-re).
+1. lépés: Globális (statikus) Timer Pointerek Egységesítése
+
+Győződj meg róla, hogy minden olyan timerhez, amit kezelni szeretnél, van egy statikus pointer a fájl elején. A te kódodban ezek már léteznek, de a WiFi-s timerhez bevezetünk egy közös pointert.
+
+C++
+
+// A fájl tetején, a többi globális változó és include mellett:
+#include <WebServer.h>
+#include <WiFi.h>
+#include <LVGL_CYD.h> // Vagy a te LVGL portod
+
+// ... ssid, password, switchState, server definíciók ...
+
+// LVGL objektum pointerek (a régiek maradnak, ha kellenek másutt)
+// lv_obj_t *btn_exit; // Ezt a createExitButton visszaadja, nem kell globálisnak lennie
+// static lv_obj_t *lbl_time_receiver = nullptr; // Példa, ezek már static-ok a kódban
+// static lv_obj_t *lbl_wifi_state = nullptr;    // Ez is static
+
+// Timer pointerek
+static lv_timer_t *shared_wifi_status_timer = nullptr; // Közös timer a WiFi állapothoz
+static lv_timer_t *receiver_stopper_timer = nullptr;   // A go_receiverStopper saját timere
+static lv_timer_t *receiver_timer = nullptr;           // A go_receiverTimer saját timere
+static lv_timer_t *stopper_timer = nullptr;            // A go_stopper saját timere
+static lv_timer_t *timer_timer = nullptr;              // A go_timer saját timere
+
+// ... a többi globális változó, pl. elapsed_receiver_ms, stb. ...
+2. lépés: cleanup_all_screen_specific_timers() Függvény Létrehozása
+
+Ez a függvény felelős lesz minden olyan timer leállításáért és törléséért, amely nem a main_screen-hez tartozik (vagyis az összes almenü timeréért).
+
+C++
+
+void cleanup_all_screen_specific_timers() {
+    // WiFi státusz timer törlése
+    if (shared_wifi_status_timer) {
+        lv_timer_del(shared_wifi_status_timer);
+        shared_wifi_status_timer = nullptr;
+    }
+    // Receiver Stopper timer törlése
+    if (receiver_stopper_timer) {
+        lv_timer_del(receiver_stopper_timer);
+        receiver_stopper_timer = nullptr;
+        // Itt resetelheted a receiver_stopperhez tartozó állapotokat is, ha kell
+        // elapsed_receiver_ms = 0;
+        // if (lbl_time_receiver) lv_label_set_text(lbl_time_receiver, "00:00:00");
+    }
+    // Receiver Timer timer törlése
+    if (receiver_timer) {
+        lv_timer_del(receiver_timer);
+        receiver_timer = nullptr;
+        // Itt resetelheted a receiver_timerhez tartozó állapotokat is, ha kell
+        // receiver_timer_sec = 0;
+        // if (lbl_time_receiver_timer) lv_label_set_text(lbl_time_receiver_timer, "00:00:00");
+    }
+    // Stopper timer törlése
+    if (stopper_timer) {
+        lv_timer_del(stopper_timer);
+        stopper_timer = nullptr;
+        // Itt resetelheted a stopperhez tartozó állapotokat is, ha kell
+        // running = false;
+        // elapsed_ms = 0;
+        // if (lbl_time_stopper) lv_label_set_text(lbl_time_stopper, "00:00:00");
+    }
+    // Timer (Időzítő) timer törlése
+    if (timer_timer) {
+        lv_timer_del(timer_timer);
+        timer_timer = nullptr;
+        // Itt resetelheted az időzítőhöz tartozó állapotokat is, ha kell
+        // timer_running = false;
+        // timer_duration_sec = 0;
+        // if (lbl_time_timer) lv_label_set_text(lbl_time_timer, "00:00:00");
+    }
+    // FIGYELEM: Az állapotváltozók (pl. elapsed_ms) és a label-ök tartalmának nullázása
+    // attól függ, hogy szeretnéd-e, hogy a képernyőre visszatérve folytatódjon az előző állapot,
+    // vagy tiszta lappal induljon. Ha tiszta lap kell, akkor itt, vagy a `go_...` függvények elején tedd meg.
+}
+3. lépés: createExitButton() Módosítása
+
+A kilépés gomb eseménykezelőjének hívnia kell a cleanup_all_screen_specific_timers() függvényt, mielőtt a main_screen()-t felépítené.
+
+C++
+
+lv_obj_t* createExitButton() { // Visszatérési típusa lv_obj_t*
+    lv_obj_t *exit_btn = lv_obj_create(lv_screen_active());
+    lv_obj_clear_flag(exit_btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(exit_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(exit_btn, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(exit_btn, 0, LV_PART_MAIN);
+    lv_obj_set_size(exit_btn, 40, 40);
+    lv_obj_align(exit_btn, LV_ALIGN_TOP_RIGHT, 0, 0);
+
+    lv_obj_add_event_cb(exit_btn, [](lv_event_t *e) -> void {
+        cleanup_all_screen_specific_timers(); // <- FONTOS: Timerek törlése itt
+        lv_obj_clean(lv_screen_active());     // Aktuális képernyő objektumainak törlése
+        main_screen();                        // Főképernyő újraépítése
+    }, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *lbl_exit_symbol = lv_label_create(exit_btn);
+    lv_obj_set_style_text_font(lbl_exit_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_align(lbl_exit_symbol, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_label_set_text(lbl_exit_symbol, LV_SYMBOL_CLOSE);
+    lv_obj_align(lbl_exit_symbol, LV_ALIGN_TOP_RIGHT, 5, -10);
+
+    return exit_btn;
+}
+A btn_exit globális változót el is hagyhatod, ha a createExitButton() visszatérési értékét nem használod fel máshol a go_... függvényekben, miután a callbacket beállítottad. Jelenleg a kódod btn_exit = createExitButton(); módon használja, ami rendben van.
+
+4. lépés: "Vevő" Képernyők (go_receiverStopper, go_receiverTimer) Módosítása
+
+Ezeknek a függvényeknek létre kell hozniuk a shared_wifi_status_timer-t, de csak akkor, ha az még nem létezik (azaz nullptr). Emellett létre kell hozniuk a saját specifikus timereiket is.
+
+C++
+
+// A wifi_status_update_cb függvény marad a régiben, de most a shared_wifi_status_timer-hez lesz kötve.
+// Győződj meg róla, hogy a lbl_wifi_state pointert helyesen kezeli.
+// Mivel lbl_wifi_state is static, és a képernyőváltáskor az lv_obj_clean törli,
+// a go_... függvényeknek újra létre kell hozniuk a lbl_wifi_state-et.
+
+void go_receiverStopper(void) {
+    // lv_obj_clean(lv_screen_active()); // Ez már nem itt kell, ha a menüből jövünk
+    lv_obj_t* exit_button = createExitButton(); // Kilépés gomb létrehozása (a cleanup már benne van)
+
+    // WiFi állapot label létrehozása (minden alkalommal újra kell, mert az lv_obj_clean törli)
+    lbl_wifi_state = lv_label_create(lv_screen_active());
+    lv_obj_set_style_text_font(lbl_wifi_state, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_align(lbl_wifi_state, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(lbl_wifi_state, LV_ALIGN_TOP_MID, 0, 10);
+    // Kezdeti WiFi állapot kijelzés
+    updateWiFiConnectionState(); // Frissíti az isTransmitterConnected változót
+    if (isTransmitterConnected) {
+        lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
+        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
+    } else {
+        lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
+        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
+    }
+    previousConnectionState = isTransmitterConnected; // Fontos a wifi_status_update_cb-nek
+
+    // Idő kijelző label létrehozása
+    lbl_time_receiver = lv_label_create(lv_screen_active());
+    lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN);
+    // elapsed_receiver_ms = 0; // Döntsd el, hogy itt vagy a cleanup-ban nullázod-e
+    // lv_label_set_text(lbl_time_receiver, "00:00:00");
+    // A meglévő kód szerint a Reset gomb nullázza. Ha kilépéskor is kell, akkor a cleanup függvénybe tedd.
+    // Jelenlegi állapot megjelenítése, ha nem nulláztad:
+    char buf_init[16];
+    uint32_t sec_init = elapsed_receiver_ms / 1000;
+    uint32_t min_init = sec_init / 60;
+    uint32_t hour_init = min_init / 60;
+    sprintf(buf_init, "%02u:%02u:%02u", hour_init, min_init % 60, sec_init % 60);
+    lv_label_set_text(lbl_time_receiver, buf_init);
+    lv_obj_align(lbl_time_receiver, LV_ALIGN_TOP_MID, 0, 60);
+
+
+    // Shared WiFi státusz timer létrehozása, ha még nem létezik
+    if (!shared_wifi_status_timer) {
+        shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
+    }
+
+    // Képernyő-specifikus receiver_stopper_timer létrehozása
+    // A cleanup miatt itt a receiver_stopper_timer nullptr kell legyen.
+    receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
+
+    // ... a többi UI elem (Reset gomb, Hal? gomb) létrehozása a meglévő kódodból ...
+    // Pl. Reset gomb:
+    lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
+    // ... pozíció, méret, label, callback ...
+    // A callbackben: elapsed_receiver_ms = 0; lv_label_set_text(lbl_time_receiver, "00:00:00");
+
+    // Hal? gomb...
+}
+
+void go_receiverTimer(void) {
+    // lv_obj_clean(lv_screen_active()); // Nem itt
+    lv_obj_t* exit_button = createExitButton();
+
+    // WiFi állapot label létrehozása (minden alkalommal újra kell)
+    lbl_wifi_state = lv_label_create(lv_screen_active());
+    // ... (ugyanaz, mint go_receiverStopper-ben) ...
+    updateWiFiConnectionState();
+    if (isTransmitterConnected) { /* ... */ } else { /* ... */ }
+    previousConnectionState = isTransmitterConnected;
+
+    // Idő kijelző label létrehozása
+    lbl_time_receiver_timer = lv_label_create(lv_screen_active());
+    // ... (hasonlóan a lbl_time_receiver-hez, receiver_timer_sec alapján)
+
+    // Shared WiFi státusz timer létrehozása, ha még nem létezik
+    if (!shared_wifi_status_timer) {
+        shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
+    }
+
+    // Képernyő-specifikus receiver_timer létrehozása
+    receiver_timer = lv_timer_create(update_receiver_timer_cb, 1000, NULL);
+
+    // ... a többi UI elem (+1 perc, -1 perc, Reset, Hal? gombok) létrehozása ...
+}
+5. lépés: Nem "Vevő" Képernyők (go_stopper, go_timer) Módosítása
+
+Ezek a függvények nem használják a shared_wifi_status_timer-t, így nekik nem kell létrehozniuk. Csak a saját specifikus timereiket kell létrehozniuk. A createExitButton() ugyanúgy gondoskodik a kilépésről és a timerek (beleértve a shared_wifi_status_timer-t is, ha futott) törléséről.
+
+C++
+
+void go_stopper(void) {
+    // lv_obj_clean(lv_screen_active()); // Nem itt
+    lv_obj_t* exit_button = createExitButton();
+
+    // Idő kijelző label létrehozása
+    lbl_time_stopper = lv_label_create(lv_screen_active());
+    // ... (stílus, pozíció, kezdeti érték az elapsed_ms alapján) ...
+    // running = false; // Ha itt kell nullázni az állapotot
+    // elapsed_ms = 0;
+    // lv_label_set_text(lbl_time_stopper, "00:00:00");
+
+
+    // Képernyő-specifikus stopper_timer létrehozása
+    stopper_timer = lv_timer_create(update_stopper_cb, 1000, nullptr);
+    // lv_timer_ready(stopper_timer); // Ez a kódban van, de a create után periodikusan fut.
+                                   // A 'running' flag vezérli a tényleges számlálást.
+
+    // ... Start/Stop, Reset, Hal? gombok létrehozása ...
+}
+
+void go_timer(void) { // Javítsd a hiányos sort a kódodban!
+    /* Eredeti hiányos rész:
+    if(timer_duration_sec > 0){
+      timer // EZT TÖRÖLD VAGY JAVÍTSD
+    }
+    */
+    // lv_obj_clean(lv_screen_active()); // Nem itt
+    lv_obj_t* exit_button = createExitButton();
+
+    // Idő kijelző label létrehozása
+    lbl_time_timer = lv_label_create(lv_screen_active());
+    // ... (stílus, pozíció, kezdeti érték a timer_duration_sec alapján) ...
+    // timer_running = false; // Ha itt kell nullázni
+    // timer_duration_sec = 0;
+    // lv_label_set_text(lbl_time_timer, "00:00:00");
+
+    // Képernyő-specifikus timer_timer létrehozása
+    timer_timer = lv_timer_create(update_timer_cb, 1000, nullptr);
+    // lv_timer_ready(timer_timer);
+
+    // ... Start/Stop, Reset, +1 perc, -1 perc, Hal? gombok létrehozása ...
+}
+Fontos Megfontolások:
+
+Állapotok Nullázása: Döntsd el, hogy a különböző számlálók (elapsed_ms, receiver_timer_sec stb.) és állapotjelzők (running, timer_running) mikor nullázódjanak:
+Csak a "Reset" gombra? (Jelenlegi viselkedés nagyjából)
+Amikor elhagyod a képernyőt (a cleanup_all_screen_specific_timers()-ben)?
+Amikor újra belépsz a képernyőre (a go_... függvények elején)? A legtisztább általában az, ha a go_... függvények elején beállítod a képernyő kezdeti állapotát, beleértve a UI elemeket és a háttérváltozókat, vagy ha a cleanup függvény gondoskodik erről.
+lv_obj_clean(lv_screen_active()) hívása: Ezt most már csak a createExitButton callbackje és a főmenü navigációs gombjainak callbackjei végzik, közvetlenül a képernyőváltás előtt. Ez így helyes.
+lbl_wifi_state Újra Létrehozása: Mivel az lv_obj_clean törli a lbl_wifi_state objektumot is (ha az az aktív képernyőn volt), a go_receiverStopper és go_receiverTimer függvényeknek minden belépéskor újra létre kell hozniuk ezt a labelt. A static lv_obj_t *lbl_wifi_state = nullptr; pointer továbbra is ugyanazt a memóriacímet fogja tárolni az újra létrehozott objektumhoz (ha a lv_label_create ugyanazt a logikát követi), de maga az LVGL objektum új lesz.
+Ez a struktúra biztosítja, hogy a timerek megfelelően legyenek kezelve, elkerülve a duplikációt és a felesleges futást.
