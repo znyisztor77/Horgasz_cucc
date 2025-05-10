@@ -7,9 +7,17 @@ const char *password = "12345678";
 bool switchState = true;
 WebServer server(80);
 
-lv_obj_t *btn_exit;
+//lv_obj_t *btn_exit;
 bool isTransmitterConnected = false;
 static uint32_t count = 1;
+
+
+// Timer pointerek
+static lv_timer_t *shared_wifi_status_timer = nullptr; // Közös timer a WiFi állapothoz
+static lv_timer_t *receiver_stopper_timer = nullptr;   // A go_receiverStopper saját timere
+static lv_timer_t *receiver_timer = nullptr;           // A go_receiverTimer saját timere
+static lv_timer_t *stopper_timer = nullptr;            // A go_stopper saját timere
+static lv_timer_t *timer_timer = nullptr;              // A go_timer saját timere
 
 void handleUpdate() {
   if (server.hasArg("state")) {
@@ -95,8 +103,54 @@ void main_screen() {
   lv_label_set_text(halDb_text, halSzoveg.c_str());
   lv_obj_align(halDb_text, LV_ALIGN_TOP_MID, 0, 220);
 }
+
+//////////////////// Timerek törlése ////////////////////////////
+void cleanup_all_screen_specific_timers() {
+    // WiFi státusz timer törlése
+    if (shared_wifi_status_timer) {
+        lv_timer_del(shared_wifi_status_timer);
+        shared_wifi_status_timer = nullptr;
+    }
+    // Receiver Stopper timer törlése
+    if (receiver_stopper_timer) {
+        lv_timer_del(receiver_stopper_timer);
+        receiver_stopper_timer = nullptr;
+        // Itt resetelheted a receiver_stopperhez tartozó állapotokat is, ha kell
+        elapsed_receiver_ms = 0;
+        if (lbl_time_receiver) lv_label_set_text(lbl_time_receiver, "00:00:00");
+    }
+    // Receiver Timer timer törlése
+    if (receiver_timer) {
+        lv_timer_del(receiver_timer);
+        receiver_timer = nullptr;
+        // Itt resetelheted a receiver_timerhez tartozó állapotokat is, ha kell
+        receiver_timer_sec = 0;
+        if (lbl_time_receiver_timer) lv_label_set_text(lbl_time_receiver_timer, "00:00:00");
+    }
+    // Stopper timer törlése
+    if (stopper_timer) {
+        lv_timer_del(stopper_timer);
+        stopper_timer = nullptr;
+        // Itt resetelheted a stopperhez tartozó állapotokat is, ha kell
+        running = false;
+        elapsed_ms = 0;
+        if (lbl_time_stopper) lv_label_set_text(lbl_time_stopper, "00:00:00");
+    }
+    // Timer (Időzítő) timer törlése
+    if (timer_timer) {
+        lv_timer_del(timer_timer);
+        timer_timer = nullptr;
+        // Itt resetelheted az időzítőhöz tartozó állapotokat is, ha kell
+        timer_running = false;
+        timer_duration_sec = 0;
+        if (lbl_time_timer) lv_label_set_text(lbl_time_timer, "00:00:00");
+    }
+    // FIGYELEM: Az állapotváltozók (pl. elapsed_ms) és a label-ök tartalmának nullázása
+    // attól függ, hogy szeretnéd-e, hogy a képernyőre visszatérve folytatódjon az előző állapot,
+    // vagy tiszta lappal induljon. Ha tiszta lap kell, akkor itt, vagy a `go_...` függvények elején tedd meg.
+}
 //////////////////// Exit Button////////////////////////////
-lv_obj_t *createExitButton() {
+/*lv_obj_t *createExitButton() {
   lv_obj_t *exit_btn = lv_obj_create(lv_screen_active());
   lv_obj_clear_flag(exit_btn, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(exit_btn, LV_OBJ_FLAG_CLICKABLE);
@@ -119,13 +173,37 @@ lv_obj_t *createExitButton() {
 
   return exit_btn;
 }
+*/
 
+lv_obj_t* createExitButton() { // Visszatérési típusa lv_obj_t*
+    lv_obj_t *exit_btn = lv_obj_create(lv_screen_active());
+    lv_obj_clear_flag(exit_btn, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(exit_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(exit_btn, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(exit_btn, 0, LV_PART_MAIN);
+    lv_obj_set_size(exit_btn, 40, 40);
+    lv_obj_align(exit_btn, LV_ALIGN_TOP_RIGHT, 0, 0);
+
+    lv_obj_add_event_cb(exit_btn, [](lv_event_t *e) -> void {
+        cleanup_all_screen_specific_timers(); // <- FONTOS: Timerek törlése itt
+        lv_obj_clean(lv_screen_active());     // Aktuális képernyő objektumainak törlése
+        main_screen();                        // Főképernyő újraépítése
+    }, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *lbl_exit_symbol = lv_label_create(exit_btn);
+    lv_obj_set_style_text_font(lbl_exit_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_align(lbl_exit_symbol, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_label_set_text(lbl_exit_symbol, LV_SYMBOL_CLOSE);
+    lv_obj_align(lbl_exit_symbol, LV_ALIGN_TOP_RIGHT, 5, -10);
+
+    return exit_btn;
+}
 //////////////////// Receiver Stopper ////////////////////////////
-static lv_timer_t *receiver_stopper_timer = nullptr;
-static lv_obj_t *lbl_time_receiver = nullptr;
+//static lv_timer_t *receiver_stopper_timer = nullptr;
+//static lv_obj_t *lbl_time_receiver = nullptr;
 static uint32_t elapsed_receiver_ms = 0;
 
-static lv_obj_t *lbl_wifi_state = nullptr;
+//static lv_obj_t *lbl_wifi_state = nullptr;
 static bool previousConnectionState = false;
 
 void updateWiFiConnectionState() {
@@ -162,13 +240,32 @@ static void update_receiver_stopper_cb(lv_timer_t *t) {
 }
 
 void go_receiverStopper(void) {
-  btn_exit = createExitButton();
-
-  lbl_wifi_state = lv_label_create(lv_screen_active());
+  //btn_exit = createExitButton();
+  lv_obj_t* exit_button = createExitButton(); // Kilépés gomb létrehozása (a cleanup már benne van)
+  
+  
+  /*lbl_wifi_state = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_wifi_state, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_align(lbl_wifi_state, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(lbl_wifi_state, LV_ALIGN_TOP_MID, 0, 10);
+  lv_obj_align(lbl_wifi_state, LV_ALIGN_TOP_MID, 0, 10);*/
 
+  // WiFi állapot label létrehozása (minden alkalommal újra kell, mert az lv_obj_clean törli)
+    lbl_wifi_state = lv_label_create(lv_screen_active());
+    lv_obj_set_style_text_font(lbl_wifi_state, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_align(lbl_wifi_state, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(lbl_wifi_state, LV_ALIGN_TOP_MID, 0, 10);
+    // Kezdeti WiFi állapot kijelzés
+    updateWiFiConnectionState(); // Frissíti az isTransmitterConnected változót
+    if (isTransmitterConnected) {
+        lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
+        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
+    } else {
+        lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
+        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
+    }
+    previousConnectionState = isTransmitterConnected; // Fontos a wifi_status_update_cb-nek
+
+  /*
   // Első frissítés
   if (isTransmitterConnected) {
     lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
@@ -177,7 +274,7 @@ void go_receiverStopper(void) {
     lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
   }
-
+  */
   lbl_time_receiver = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN);
   lv_label_set_text(lbl_time_receiver, "00:00:00");
@@ -216,7 +313,7 @@ void go_receiverStopper(void) {
 }
 
 //////////////////// Receiver Timer////////////////////////////
-static lv_timer_t *receiver_timer = nullptr;
+//static lv_timer_t *receiver_timer = nullptr;
 static lv_obj_t *lbl_time_receiver_timer = nullptr;
 static uint32_t receiver_timer_sec = 0;
 
@@ -323,7 +420,7 @@ void go_receiverTimer(void) {
 }
 
 //////////////////// Stopper////////////////////////////
-static lv_timer_t *stopper_timer = nullptr;
+//static lv_timer_t *stopper_timer = nullptr;
 static lv_obj_t *lbl_time_stopper = nullptr;
 static bool running = false;
 static uint32_t elapsed_ms = 0;
@@ -425,7 +522,7 @@ void go_stopper(void) {
 }
 
 //////////////////// Timer ////////////////////////////
-static lv_timer_t *timer_timer = nullptr;
+//static lv_timer_t *timer_timer = nullptr;
 static lv_obj_t *lbl_time_timer = nullptr;
 static uint32_t timer_duration_sec = 0;
 static bool timer_running = false;
