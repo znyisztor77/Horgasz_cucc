@@ -24,7 +24,7 @@ String myString;
 String cmessage;  // complete message
 char buff[10];
 float weight;
-float calibration_factor = 1500;  // for me this vlaue works just perfect 206140
+float calibration_factor = 20;  // for me this vlaue works just perfect 1500
 
 //static int prevState = HIGH;
 //int currentState = digitalRead(tareButton);
@@ -72,18 +72,15 @@ void loop() {
   timer.run();                          // Initiates SimpleTimer
   scale.set_scale(calibration_factor);  //Adjust to this calibration factor
 
-  weight = scale.get_units(15);  //5
-  myString = dtostrf(weight, 3, 3, buff);
-  cmessage = cmessage + "Weight" + ":" + myString + "Kg" + ",";
+  weight = scale.get_units(15);  //15
+  myString = dtostrf(weight, 3, 3, buff); // double to string (float) with format
+  cmessage = cmessage + "Weight" + ":" + myString + ",";
   Serial.println(cmessage);
   cmessage = "";
 
   Serial.println();
 
-  if (digitalRead(tareButton) == LOW) {
-    scale.set_scale();
-    scale.tare();  //Reset the scale to 0
-  }
+  
 
   //static int prevState = HIGH;
   //int currentState = digitalRead(tareButton);
@@ -94,7 +91,7 @@ void loop() {
   Serial.println("Olvasott érték: " + String(readWeight));
 
   
-  if (readWeight > 5) {
+  if (readWeight >= 5) {
     Serial.println("Nagyobb mint öt!!!!");
     prevState = true;
     currentState = false;
@@ -124,6 +121,11 @@ void loop() {
       http.end();
     }
   }
+  if (digitalRead(tareButton) == LOW) {
+    //scale.set_scale();
+    scale.tare();  //Reset the scale to 0
+    Serial.print("Tare ok!");
+  }
   delay(100);
 }
 
@@ -135,8 +137,15 @@ void getSendData() {
   display.print("Weight: ");
 
   display.setTextSize(1);
-  //display.setCursor(0, 30);
+  //display.setCursor(0, 30);  
   display.print(myString);
+  display.setTextSize(1);
+  display.println();
+  display.println();
+  display.print("Allapot: ");
+  if(readWeight >=5){
+    display.print("Start");
+  }else{display.print("Stop");}
 
   display.display();
 }
