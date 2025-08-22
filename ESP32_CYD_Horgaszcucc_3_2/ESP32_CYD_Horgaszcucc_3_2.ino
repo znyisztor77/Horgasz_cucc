@@ -1,6 +1,19 @@
+**
+ * lv_conf.h
+ * Configuration file for v9.2.2
+ */
+
+/*
+ * Copy this file as `lv_conf.h`
+ * 1. simply next to the `lvgl` folder
+ * 2. or any other places and
+ *    - define `LV_CONF_INCLUDE_SIMPLE`
+ *    - add the path as include path
+ */
+
 #include <WebServer.h>
 #include <WiFi.h>
-#include <LVGL_CYD.h>
+#include <LVGL_CYD.h> // https://github.com/ropg/LVGL_CYD
 
 const char *ssid = "ESP32_AP";
 const char *password = "12345678";
