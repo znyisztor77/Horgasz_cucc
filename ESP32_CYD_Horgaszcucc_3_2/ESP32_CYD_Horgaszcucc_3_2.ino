@@ -1,14 +1,14 @@
-**
- * lv_conf.h
- * Configuration file for v9.2.2
- */
+
+ //lv_conf.h
+ //Configuration file for v9.2.2
+ //ESP32 Dev Modul
 
 /*
- * Copy this file as `lv_conf.h`
- * 1. simply next to the `lvgl` folder
- * 2. or any other places and
- *    - define `LV_CONF_INCLUDE_SIMPLE`
- *    - add the path as include path
+ Copy this file as `lv_conf.h`
+ 1. simply next to the `lvgl` folder
+ 2. or any other places and
+     - define `LV_CONF_INCLUDE_SIMPLE`
+     - add the path as include path
  */
 
 #include <WebServer.h>
@@ -83,6 +83,8 @@ void setup() {
   server.begin();
 
   LVGL_CYD::begin(USB_LEFT);
+  //LVGL_CYD::led(uint8_t red, uint8_t green, uint8_t blue, bool true_color = true);
+  LVGL_CYD::led(0,0,255);
   main_screen();
 }
 
@@ -255,11 +257,11 @@ static void update_receiver_stopper_cb(lv_timer_t *t) {
   if (!switchState) {
     elapsed_receiver_ms += 1000;
     uint32_t sec = elapsed_receiver_ms / 1000;
-    uint32_t min = sec / 60;
-    uint32_t hour = min / 60;
+    uint32_t min = (sec / 60) % 60;
+    uint32_t hour = sec / 3600;
     sec %= 60;
     char buf[16];
-    sprintf(buf, "%02u:%02u:%02u", hour, min % 60, sec);
+    sprintf(buf, "%02u:%02u:%02u", hour, min, sec);
     lv_label_set_text(lbl_time_receiver, buf);
   }
 }
@@ -478,14 +480,15 @@ static void update_stopper_cb(lv_timer_t *t) {
   if (running) {
     elapsed_ms += 1000;
     uint32_t sec = elapsed_ms / 1000;
-    uint32_t min = sec / 60;
-    uint32_t hour = min / 60;
+    uint32_t min = (sec / 60) % 60;
+    uint32_t hour = sec / 3600;
     sec %= 60;
     char buf[16];
     sprintf(buf, "%02u:%02u:%02u", hour, min, sec);
     lv_label_set_text(lbl_time_stopper, buf);
   }
 }
+
 
 void go_stopper(void) {
   //btn_exit = createExitButton();
