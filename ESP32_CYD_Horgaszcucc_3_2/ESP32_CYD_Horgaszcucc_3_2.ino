@@ -1,7 +1,7 @@
 
- //lv_conf.h
- //Configuration file for v9.2.2
- //ESP32 Dev Modul
+//lv_conf.h
+//Configuration file for v9.2.2
+//ESP32 Dev Modul
 
 /*
  Copy this file as `lv_conf.h`
@@ -13,7 +13,7 @@
 
 #include <WebServer.h>
 #include <WiFi.h>
-#include <LVGL_CYD.h> // https://github.com/ropg/LVGL_CYD
+#include <LVGL_CYD.h>  // https://github.com/ropg/LVGL_CYD
 
 const char *ssid = "ESP32_AP";
 const char *password = "12345678";
@@ -75,8 +75,23 @@ void handleState() {
   server.send(200, "text/plain", switchState ? "Nincs benyomva" : "Benyomva");
 }
 
+void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+  Serial.println("Eszköz csatlakozott az AP-hoz");
+  
+  Serial.println();
+}
+
+void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info) {
+  Serial.println("Eszköz lecsatlakozott az AP-ról");
+}
+
+
 void setup() {
   WiFi.softAP(ssid, password);
+
+  WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
+  WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_AP_STADISCONNECTED);
+
   server.on("/", handleRoot);
   server.on("/state", handleState);
   server.on("/update", HTTP_POST, handleUpdate);
@@ -84,7 +99,7 @@ void setup() {
 
   LVGL_CYD::begin(USB_LEFT);
   //LVGL_CYD::led(uint8_t red, uint8_t green, uint8_t blue, bool true_color = true);
-  LVGL_CYD::led(0,0,255);
+  LVGL_CYD::led(255, 0, 0);
   main_screen();
 }
 
@@ -172,7 +187,6 @@ void cleanup_all_screen_specific_timers() {
     timer_duration_sec = 0;
     if (lbl_time_timer) lv_label_set_text(lbl_time_timer, "00:00:00");
   }
-  
 }
 //////////////////// Exit Button////////////////////////////
 /*lv_obj_t *createExitButton() {
@@ -235,6 +249,11 @@ static bool previousConnectionState = false;
 
 void updateWiFiConnectionState() {
   isTransmitterConnected = (WiFi.softAPgetStationNum() > 0);
+  if (isTransmitterConnected) {
+    LVGL_CYD::led(0, 255, 0);
+  } else {
+    LVGL_CYD::led(0, 0, 255);
+  }
 }
 
 static void wifi_status_update_cb(lv_timer_t *t) {
@@ -314,8 +333,8 @@ void go_receiverStopper(void) {
   lv_obj_align(lbl_time_receiver, LV_ALIGN_TOP_MID, 0, 60);
 
   if (!shared_wifi_status_timer) {
-        shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
-    }
+    shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
+  }
 
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 100, 120);
@@ -368,14 +387,14 @@ static void update_receiver_timer_cb(lv_timer_t *) {
 
 void go_receiverTimer(void) {
   //btn_exit = createExitButton();
-  lv_obj_t* exit_button = createExitButton();
+  lv_obj_t *exit_button = createExitButton();
 
   lbl_wifi_state = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_wifi_state, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_align(lbl_wifi_state, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(lbl_wifi_state, LV_ALIGN_TOP_MID, 0, 10);
-  
-  updateWiFiConnectionState(); 
+
+  updateWiFiConnectionState();
   // Első frissítés
   if (isTransmitterConnected) {
     lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
@@ -397,8 +416,8 @@ void go_receiverTimer(void) {
   lv_obj_align(lbl_time_receiver_timer, LV_ALIGN_TOP_MID, 0, 60);
 
   if (!shared_wifi_status_timer) {
-        shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
-    }
+    shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
+  }
 
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 100, 120);
@@ -512,7 +531,7 @@ void go_stopper(void) {
   lbl_time_stopper = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_stopper, &lv_font_montserrat_36, LV_PART_MAIN);
   lv_label_set_text(lbl_time_stopper, "00:00:00");
-  running = false; // Ha itt kell nullázni az állapotot
+  running = false;  // Ha itt kell nullázni az állapotot
   elapsed_ms = 0;
   lv_obj_align(lbl_time_stopper, LV_ALIGN_TOP_MID, 0, 30);
 
@@ -613,7 +632,7 @@ void go_timer(void) {
 
   lbl_time_timer = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_timer, &lv_font_montserrat_36, LV_PART_MAIN);
-  timer_running = false; // Ha itt kell nullázni
+  timer_running = false;  // Ha itt kell nullázni
   timer_duration_sec = 0;
   lv_label_set_text(lbl_time_timer, "00:00:00");
   lv_obj_align(lbl_time_timer, LV_ALIGN_TOP_MID, 0, 30);
@@ -713,7 +732,7 @@ void go_timer(void) {
 }
 
 void loop() {
-  Serial.println(WiFi.softAPgetHostname());
+  //Serial.println(WiFi.softAPgetHostname());
   server.handleClient();
   lv_task_handler();
   lv_tick_inc(5);

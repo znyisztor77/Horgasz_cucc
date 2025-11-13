@@ -17,7 +17,6 @@ const char* ssid = "ESP32_AP";      // ESP32 Access Point neve
 const char* password = "12345678";  // ESP32 Access Point jelszava
 
 const char* serverUrl = "http://192.168.4.1/update";  // Az ESP32 IP-címe (alapértelmezett 192.168.4.1)
-//const int switchPin = 2; // Kapcsoló GPIO pinje
 
 const int tareButton = 2;  // this button will be used to reset the scale to 0.
 String myString;
