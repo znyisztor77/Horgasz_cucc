@@ -9,8 +9,8 @@
 #include <Adafruit_SSD1306.h>
 #include <SimpleTimer.h>
 
-#define DT 3
-#define SCK 4
+#define HX711_DT 3
+#define HX711_SCK 4
 // for the OLED display
 #define I2C_SDA 1
 #define I2C_SCL 2
@@ -19,7 +19,7 @@
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET -1  // Reset pin # (or -1 if sharing Arduino reset pin)
 
-HX711 scale(DT, SCK);
+HX711 scale(HX711_DT, HX711_SCK);
 SimpleTimer timer;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -28,17 +28,30 @@ const char* password = "12345678";  // ESP32 Access Point jelszava
 String vevoIP = "192.168.4.1";
 //const char* serverUrl = "http://192.168.4.1/update";  // Az ESP32 IP-címe (alapértelmezett 192.168.4.1)
 String serverUrl = "http://192.168.4.1/ping";
-const int tareButton = 5;  // this button will be used to reset the scale to 0.
-const int testButton = 6;  // ha nem működik a súlymérő akkor ezzel is lehet tesztelni.
+
+
 String myString; // Serial-ra kiírandó üzenet összeállítása.
 String cmessage;  // Összeállított Serial üzenet
 char buff[10];
 float weight;
 int readWeight;
 float calibration_factor = 20;  // for me this vlaue works just perfect 1500
+const int tareButton = 5;  // tare gomb, súlymérő nullázása
 
-static int prevState;
-int currentState;
+const float SULY_KUSZOB = 5.0; // 5 gramm küszöbérték
+bool sulyAllapot = false;
+bool elozo_sulyAllapot = false;
+
+/*static int prevState;
+int currentState;*/
+
+const int testButton = 6;  // ha nem működik a súlymérő akkor ezzel is lehet tesztelni.
+bool gombAllapot = false;
+bool elozo_gombAllapot = false;
+// Kombinált állapot (gomb VAGY súly)
+bool kombinaltAllapot = false;
+bool elozo_kombinaltAllapot = false;
+
 
 unsigned long utolsoPing = 0;
 const unsigned long PING_INTERVALLUM = 500; // 500 ms - gyorsabb frissítés a gomb miatt
@@ -48,11 +61,28 @@ void setup() {
 
   Serial.begin(115200);
   Wire.begin(I2C_SDA, I2C_SCL);
-  WiFi.begin(ssid, password);
+  
   Serial.print("Eszköz elindult.");
-  pinMode(tareButton, INPUT_PULLUP);
-  pinMode(testButton, INPUT_PULLUP);
 
+  pinMode(tareButton, INPUT_PULLUP);
+  pinMode(testButton, INPUT_PULLUP); 
+
+// HX711 inicializálása
+  scale.begin(HX711_DT, HX711_SCK);
+  if (scale.is_ready()) {
+    Serial.println("HX711 készen áll");
+    scale.set_scale(calibration_factor);
+    scale.tare(); // Nullázás
+    Serial.println("Súlymérő nullázva");
+  } else {
+    Serial.println("HIBA: HX711 nem elérhető!");
+  }
+  scale.set_scale();
+  scale.tare();                             //Reset the scale to 0
+  long zero_factor = scale.read_average();  //Get a baseline reading
+
+  //WiFi csatlakozás
+  WiFi.begin(ssid, password);
   Serial.print("Csatlakozás az ESP32-höz...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -63,15 +93,11 @@ void setup() {
     Serial.println("\nWiFi kapcsolat létrejött!");
     Serial.print("IP cím: ");
     Serial.println(WiFi.localIP());
-    Serial.print("Vevő IP: ");
-    Serial.println(vevoIP);
+    //Serial.print("Vevő IP: ");
+    //Serial.println(vevoIP);
   } else {
     Serial.println("\nNem sikerült csatlakozni a WiFi-hez!");
   }
-
-  scale.set_scale();
-  scale.tare();                             //Reset the scale to 0
-  long zero_factor = scale.read_average();  //Get a baseline reading
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   timer.setInterval(1000L, displayData);
@@ -87,17 +113,75 @@ void loop() {
     delay(5000);
     return;
   }
-  timer.run();  // Initiates SimpleTimer
+  timer.run();  // Initiates SimpleTimer a kijelző miatt kell
 
-  scale.set_scale(calibration_factor);     //Adjust to this calibration factor
-  weight = scale.get_units(15);            //súly mérés,  15 mérés átlaga
+  gombAllapot = !digitalRead(testButton);
+
+  // Súly mérése
+  /*if (scale.is_ready()) {
+    float suly = scale.get_units(15); // 15 mérés átlaga
+    readWeight = (int)suly;  // olvasott érték Egész számmá alakítás a kijelzőn megjelenítés miatt
+    
+    // Súly alapú állapot meghatározása
+    sulyAllapot = (suly > SULY_KUSZOB);
+    
+    // Debug kiírás
+    if (sulyAllapot != elozo_sulyAllapot) {
+      Serial.print("Súly: ");
+      Serial.print(suly);
+      Serial.print(" g - Állapot: ");
+      Serial.println(sulyAllapot ? "AKTÍV (>5g)" : "INAKTÍV (<=5g)");
+      elozo_sulyAllapot = sulyAllapot;
+    }
+  }*/
+
   
+    float suly = scale.get_units(15); // 15 mérés átlaga
+    readWeight = (int)suly;  // olvasott érték Egész számmá alakítás a kijelzőn megjelenítés miatt
+    
+    // Súly alapú állapot meghatározása
+    sulyAllapot = (suly > SULY_KUSZOB);
+    
+    // Debug kiírás
+    if (sulyAllapot != elozo_sulyAllapot) {
+      Serial.print("Súly: ");
+      Serial.print(suly);
+      Serial.print(" g - Állapot: ");
+      Serial.println(sulyAllapot ? "AKTÍV (>5g)" : "INAKTÍV (<=5g)");
+      elozo_sulyAllapot = sulyAllapot;
+    }
+  
+  
+  // Kombinált állapot: gomb VAGY súly (ha bármelyik aktív, akkor aktív)
+  kombinaltAllapot = gombAllapot || sulyAllapot;
+  
+  // Ha megváltozott a kombinált állapot, azonnal küldjünk frissítést
+  if (kombinaltAllapot != elozo_kombinaltAllapot) {
+    elozo_kombinaltAllapot = kombinaltAllapot;
+    
+    Serial.print(">>> ÁLLAPOTVÁLTOZÁS: ");
+    if (gombAllapot && sulyAllapot) {
+      Serial.println("GOMB ÉS SÚLY AKTÍV");
+    } else if (gombAllapot) {
+      Serial.println("GOMB AKTÍV");
+    } else if (sulyAllapot) {
+      Serial.println("SÚLY AKTÍV");
+    } else {
+      Serial.println("INAKTÍV");
+    }
+    
+    // Azonnali ping küldése
+    pingKuldes();
+  }
+  
+/* Ez volt az első. Ezzel működött a súlymérés kapcsolása
+  scale.set_scale(calibration_factor);     //Adjust to this calibration factor
+  weight = scale.get_units(15);            //súly mérés,  15 mérés átlaga  
   myString = dtostrf(weight, 3, 3, buff);  // double to string (float) with format 
   cmessage = cmessage + "Weight" + ":" + myString + ","; // Serial szöveg összefűzése
   Serial.println(cmessage);
   cmessage = "";
-  Serial.println();
-  
+  Serial.println();  
   readWeight = (int)weight;  // olvasott érték Egész számmá alakítás
   Serial.println("Olvasott érték: " + String(readWeight));
   if (readWeight >= 5 || digitalRead(testButton) == LOW) {
@@ -110,9 +194,7 @@ void loop() {
     prevState = false;
     Serial.println("Kisebb mint öt/ Gomb elengedve!!!!");
   }
-
   Serial.println("Current állapot: " + String(currentState));
-
   if (currentState != prevState) {
     prevState = currentState;
 
@@ -132,6 +214,10 @@ void loop() {
       http.end();
     }
   }
+*/
+
+  myString = dtostrf(suly, 3, 3, buff);  // double to string (float) with format
+   
   if (digitalRead(tareButton) == LOW) {
     //scale.set_scale();
     scale.tare();  //Reset the scale to 0
@@ -172,7 +258,7 @@ void pingKuldes() {
   HTTPClient http;
 
   // URL összeállítása gomb állapottal
-  String url = serverUrl + "?button=" + String(currentState ? "1" : "0");
+  String url = serverUrl + "?button=" + String(kombinaltAllapot ? "1" : "0");
   http.begin(url);
 
   int httpCode = http.GET();
