@@ -58,17 +58,7 @@ void handleRoot() {
   html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
   html += "<meta charset='UTF-8'>";
   html += "<script>function updateState(){";
-  html += "fetch('/state').then(response => response.text()).then(data => {";
-  html += "document.getElementById('switchState').innerHTML = data;";
-  html += "}); setTimeout(updateState, 1000); }";
-  html += "window.onload = updateState;";
-  html += "</script></head>";
-  html += "<body style='font-family: Arial; text-align: center; padding: 20px;'>";
-  html += "<h2>ESP32 Kapcsoló Állapot</h2>";
-  html += "<h1 id='switchState'>N/A</h1>";
-  html += "</body></html>";
-
-  server.send(200, "text/html", html);
+…  server.send(200, "text/html", html);
 }
 
 void handleState() {
@@ -239,11 +229,8 @@ lv_obj_t *createExitButton() {  // Visszatérési típusa lv_obj_t*
 
   return exit_btn;
 }
-//////////////////// Receiver Stopper ////////////////////////////
-//static lv_timer_t *receiver_stopper_timer = nullptr;
-//static lv_obj_t *lbl_time_receiver = nullptr;
-//static uint32_t elapsed_receiver_ms = 0;
 
+//////////////////// Connection Status ////////////////////////////
 //static lv_obj_t *lbl_wifi_state = nullptr;
 static bool previousConnectionState = false;
 
@@ -271,6 +258,11 @@ static void wifi_status_update_cb(lv_timer_t *t) {
     }
   }
 }
+
+//////////////////// Receiver Stopper ////////////////////////////
+//static lv_timer_t *receiver_stopper_timer = nullptr;
+//static lv_obj_t *lbl_time_receiver = nullptr;
+//static uint32_t elapsed_receiver_ms = 0;
 
 static void update_receiver_stopper_cb(lv_timer_t *t) {
   if (!switchState) {
