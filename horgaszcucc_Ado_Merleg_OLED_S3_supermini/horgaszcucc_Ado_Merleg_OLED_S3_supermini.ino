@@ -1,3 +1,5 @@
+#include <FastLED.h>
+
 #include <HTTPClient.h>  //ESP32
 #include <WiFi.h>        //ESP32
 //#include <ESP8266WiFi.h>
@@ -9,6 +11,9 @@
 #include <Adafruit_SSD1306.h>
 #include <SimpleTimer.h>
 
+#define NUM_LEDS 1
+#define DATA_PIN 48
+
 #define HX711_DT 3
 #define HX711_SCK 4
 // for the OLED display
@@ -18,7 +23,7 @@
 #define SCREEN_HEIGHT 32  // OLED display height, in pixels
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET -1  // Reset pin # (or -1 if sharing Arduino reset pin)
-
+CRGB leds[NUM_LEDS];
 HX711 scale(HX711_DT, HX711_SCK);
 SimpleTimer timer;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -30,15 +35,15 @@ String vevoIP = "192.168.4.1";
 String serverUrl = "http://192.168.4.1/ping";
 
 
-String myString; // Serial-ra kiírandó üzenet összeállítása.
+String myString;  // Serial-ra kiírandó üzenet összeállítása.
 String cmessage;  // Összeállított Serial üzenet
 char buff[10];
 float weight;
 int readWeight;
 float calibration_factor = 20;  // for me this vlaue works just perfect 1500
-const int tareButton = 5;  // tare gomb, súlymérő nullázása
+const int tareButton = 5;       // tare gomb, súlymérő nullázása
 
-const float SULY_KUSZOB = 5.0; // 5 gramm küszöbérték
+const float SULY_KUSZOB = 5.0;  // 5 gramm küszöbérték
 bool sulyAllapot = false;
 bool elozo_sulyAllapot = false;
 
@@ -54,25 +59,25 @@ bool elozo_kombinaltAllapot = false;
 
 
 unsigned long utolsoPing = 0;
-const unsigned long PING_INTERVALLUM = 500; // 500 ms - gyorsabb frissítés a gomb miatt
+const unsigned long PING_INTERVALLUM = 500;  // 500 ms - gyorsabb frissítés a gomb miatt
 
 
 void setup() {
 
   Serial.begin(115200);
   Wire.begin(I2C_SDA, I2C_SCL);
-  
+  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
   Serial.print("Eszköz elindult.");
 
   pinMode(tareButton, INPUT_PULLUP);
-  pinMode(testButton, INPUT_PULLUP); 
+  pinMode(testButton, INPUT_PULLUP);
 
-// HX711 inicializálása
+  // HX711 inicializálása
   scale.begin(HX711_DT, HX711_SCK);
   if (scale.is_ready()) {
     Serial.println("HX711 készen áll");
     scale.set_scale(calibration_factor);
-    scale.tare(); // Nullázás
+    scale.tare();  // Nullázás
     Serial.println("Súlymérő nullázva");
   } else {
     Serial.println("HIBA: HX711 nem elérhető!");
@@ -83,10 +88,12 @@ void setup() {
 
   //WiFi csatlakozás
   WiFi.begin(ssid, password);
+  int proba = 0;
   Serial.print("Csatlakozás az ESP32-höz...");
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED && proba < 20) {
     delay(500);
     Serial.print(".");
+    proba++;
   }
   //Serial.println("\nCsatlakozva!");
   if (WiFi.status() == WL_CONNECTED) {
@@ -101,6 +108,7 @@ void setup() {
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   timer.setInterval(1000L, displayData);
+  //displayData();
   display.clearDisplay();
   display.setTextColor(WHITE);
 }
@@ -135,30 +143,30 @@ void loop() {
     }
   }*/
 
-  
-    float suly = scale.get_units(15); // 15 mérés átlaga
-    readWeight = (int)suly;  // olvasott érték Egész számmá alakítás a kijelzőn megjelenítés miatt
-    
-    // Súly alapú állapot meghatározása
-    sulyAllapot = (suly > SULY_KUSZOB);
-    
-    // Debug kiírás
-    if (sulyAllapot != elozo_sulyAllapot) {
-      Serial.print("Súly: ");
-      Serial.print(suly);
-      Serial.print(" g - Állapot: ");
-      Serial.println(sulyAllapot ? "AKTÍV (>5g)" : "INAKTÍV (<=5g)");
-      elozo_sulyAllapot = sulyAllapot;
-    }
-  
-  
+
+  float suly = scale.get_units(10);  // 15 mérés átlaga
+  readWeight = (int)suly;            // olvasott érték Egész számmá alakítás a kijelzőn megjelenítés miatt
+
+  // Súly alapú állapot meghatározása
+  sulyAllapot = (suly > SULY_KUSZOB);
+
+  // Debug kiírás
+  if (sulyAllapot != elozo_sulyAllapot) {
+    Serial.print("Súly: ");
+    Serial.print(suly);
+    Serial.print(" g - Állapot: ");
+    Serial.println(sulyAllapot ? "AKTÍV (>5g)" : "INAKTÍV (<=5g)");
+    elozo_sulyAllapot = sulyAllapot;
+  }
+
+
   // Kombinált állapot: gomb VAGY súly (ha bármelyik aktív, akkor aktív)
   kombinaltAllapot = gombAllapot || sulyAllapot;
-  
+
   // Ha megváltozott a kombinált állapot, azonnal küldjünk frissítést
   if (kombinaltAllapot != elozo_kombinaltAllapot) {
     elozo_kombinaltAllapot = kombinaltAllapot;
-    
+
     Serial.print(">>> ÁLLAPOTVÁLTOZÁS: ");
     if (gombAllapot && sulyAllapot) {
       Serial.println("GOMB ÉS SÚLY AKTÍV");
@@ -169,12 +177,12 @@ void loop() {
     } else {
       Serial.println("INAKTÍV");
     }
-    
+
     // Azonnali ping küldése
     pingKuldes();
   }
-  
-/* Ez volt az első. Ezzel működött a súlymérés kapcsolása
+
+  /* Ez volt az első. Ezzel működött a súlymérés kapcsolása
   scale.set_scale(calibration_factor);     //Adjust to this calibration factor
   weight = scale.get_units(15);            //súly mérés,  15 mérés átlaga  
   myString = dtostrf(weight, 3, 3, buff);  // double to string (float) with format 
@@ -217,7 +225,7 @@ void loop() {
 */
 
   myString = dtostrf(suly, 3, 3, buff);  // double to string (float) with format
-   
+
   if (digitalRead(tareButton) == LOW) {
     //scale.set_scale();
     scale.tare();  //Reset the scale to 0
@@ -267,9 +275,13 @@ void pingKuldes() {
     if (httpCode == HTTP_CODE_OK) {
       //Csak debug célból, hogy lássuk a kommunikációt
       Serial.println("Ping sikeres");
+      leds[0] = CRGB::Green;
+      FastLED.show();
     }
   } else {
     Serial.printf("Ping sikertelen: %s\n", http.errorToString(httpCode).c_str());
+    leds[0] = CRGB::Red;
+    FastLED.show();
   }
 
   http.end();

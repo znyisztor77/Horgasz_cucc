@@ -24,7 +24,7 @@ WebServer server(80);
 bool adoKapcsolva = false;
 bool gombAllapot = false;
 unsigned long utolsoUzenet = 0;
-const unsigned long TIMEOUT = 5000; // 5 másodperc timeout
+const unsigned long TIMEOUT = 5000;  // 5 másodperc timeout
 
 // HTML oldal
 const char webpage[] PROGMEM = R"=====(
@@ -184,6 +184,8 @@ static uint32_t elapsed_ms = 0;
 static lv_obj_t *lbl_time_stopper = nullptr;
 static uint32_t timer_duration_sec = 0;
 static bool timer_running = false;
+static bool previousConnectionState = false;
+
 
 /*void handleRoot() {
   String html = "<html><head>";
@@ -206,9 +208,8 @@ void handleStatus() {
   if (millis() - utolsoUzenet > TIMEOUT) {
     adoKapcsolva = false;
   }
-  
-  String json = "{\"connected\":" + String(adoKapcsolva ? "true" : "false") + 
-                ",\"buttonPressed\":" + String(gombAllapot ? "true" : "false") + "}";
+
+  String json = "{\"connected\":" + String(adoKapcsolva ? "true" : "false") + ",\"buttonPressed\":" + String(gombAllapot ? "true" : "false") + "}";
   server.send(200, "application/json", json);
 }
 
@@ -224,14 +225,14 @@ void handleStatus() {
 void handlePing() {
   utolsoUzenet = millis();
   adoKapcsolva = true;
-  
+
   // Gomb állapot fogadása az URL paraméterből
   if (server.hasArg("button")) {
-    gombAllapot = (server.arg("button") == "1");
+    gombAllapot = (server.arg("button") == "0");
     server.send(200, "text/plain", "OK");
   } else {
     server.send(400, "text/plain", "Hibás kérés!");
-  }  
+  }
 }
 
 /*void WiFiStationConnected(WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -247,7 +248,7 @@ void handlePing() {
 
 void setup() {
   WiFi.softAP(ssid, password);
-   IPAddress IP = WiFi.softAPIP();
+  IPAddress IP = WiFi.softAPIP();
 
   //WiFi.onEvent(WiFiStationConnected, ARDUINO_EVENT_WIFI_AP_STACONNECTED);
   //WiFi.onEvent(WiFiStationDisconnected, ARDUINO_EVENT_WIFI_AP_STADISCONNECTED);
@@ -266,6 +267,7 @@ void setup() {
   LVGL_CYD::begin(USB_LEFT);
   //LVGL_CYD::led(uint8_t red, uint8_t green, uint8_t blue, bool true_color = true);
   LVGL_CYD::led(255, 0, 0);
+
   main_screen();
 }
 
@@ -273,10 +275,38 @@ void setup() {
 void main_screen() {
   lv_obj_clean(lv_screen_active());
 
+  ///////////////////Wifi Status////////////////////////////////////////
+  //lbl_wifi_state = lv_label_create(lv_screen_active());
+  //lv_obj_set_style_text_font(lbl_wifi_state, &lv_font_montserrat_18, LV_PART_MAIN);
+  //lv_obj_set_style_text_align(lbl_wifi_state, LV_TEXT_ALIGN_CENTER, 0);
+  //lv_obj_align(lbl_wifi_state, LV_ALIGN_TOP_MID, 0, 10);
+  // Kezdeti WiFi állapot kijelzés
+
+  /*lv_obj_t *main_text = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(main_text, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_label_set_text(main_text, "FishingTimer v1.0.");
+  lv_obj_align(main_text, LV_ALIGN_TOP_LEFT, 0, 10);*/
+  //lv_obj_set_style_text_align(main_text, LV_TEXT_ALIGN_CENTER, 0);
+  //lv_obj_align(main_text, LV_ALIGN_TOP_RIGHT, 0, 10);
   lv_obj_t *main_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(main_text, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_label_set_text(main_text, "FishingTimer v1.0.");
-  lv_obj_align(main_text, LV_ALIGN_TOP_MID, 0, 10);
+  lv_obj_align(main_text, LV_ALIGN_TOP_LEFT, 0, 10);
+
+  lv_obj_t *wifi_text = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(wifi_text, &lv_font_montserrat_18, LV_PART_MAIN);
+  //lv_label_set_text(wifi_text, "Wifi");
+  lv_obj_align(wifi_text, LV_ALIGN_TOP_RIGHT, 0, 10);
+
+  updateWiFiConnectionState();  // Frissíti az isTransmitterConnected változót
+  if (isTransmitterConnected) {
+    lv_label_set_text(wifi_text, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_color(wifi_text, lv_color_hex(0x00ff00), LV_PART_MAIN);
+  } else {
+    lv_label_set_text(wifi_text, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_color(wifi_text, lv_color_hex(0xff0000), LV_PART_MAIN);
+  }
+  previousConnectionState = isTransmitterConnected;
 
   auto create_nav_btn = [](const char *txt, lv_coord_t y_offset, lv_event_cb_t cb) {
     lv_obj_t *btn = lv_button_create(lv_screen_active());
@@ -408,11 +438,11 @@ lv_obj_t *createExitButton() {  // Visszatérési típusa lv_obj_t*
 
 //////////////////// Connection Status ////////////////////////////
 //static lv_obj_t *lbl_wifi_state = nullptr;
-static bool previousConnectionState = false;
+//static bool previousConnectionState = false;
 
 void updateWiFiConnectionState() {
   //isTransmitterConnected = (WiFi.softAPgetStationNum() > 0);
-  isTransmitterConnected == adoKapcsolva;
+  isTransmitterConnected = adoKapcsolva;
   if (isTransmitterConnected) {
     LVGL_CYD::led(0, 255, 0);
   } else {
@@ -534,7 +564,7 @@ void go_receiverStopper(void) {
     LV_EVENT_CLICKED, label_fish);
 
   receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
-  lv_timer_create(wifi_status_update_cb, 1000, NULL);
+  //lv_timer_create(wifi_status_update_cb, 1000, NULL);
 }
 
 //////////////////// Receiver Timer////////////////////////////
@@ -581,7 +611,7 @@ void go_receiverTimer(void) {
   uint32_t min_init = sec_init / 60;
   uint32_t hour_init = min_init / 60;
   sprintf(buf_init, "%02u:%02u:%02u", hour_init, min_init % 60, sec_init % 60);
-  lv_label_set_text(lbl_time_receiver, buf_init);
+  lv_label_set_text(lbl_time_receiver_timer, buf_init);  // hiba javítás
   lv_obj_align(lbl_time_receiver_timer, LV_ALIGN_TOP_MID, 0, 60);
 
   if (!shared_wifi_status_timer) {
@@ -903,10 +933,10 @@ void go_timer(void) {
 void loop() {
   //Serial.println(WiFi.softAPgetHostname());
   server.handleClient();
-  if (adoKapcsolva && (millis() - utolsoUzenet > TIMEOUT)) {
+  /*if (adoKapcsolva && (millis() - utolsoUzenet > TIMEOUT)) {
     adoKapcsolva = false;
     Serial.println("Adó kapcsolat megszakadt (timeout)");
-  }
+  }*/
   lv_task_handler();
   lv_tick_inc(5);
   delay(5);
