@@ -17,6 +17,7 @@
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
 
+//A panel led beállítása
 CRGB leds[NUM_LEDS];
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -42,6 +43,7 @@ bool elozo_sulyAllapot = false;
 float suly = 0;
 int readWeight = 0;
 
+//Gomb állapotok kezelése
 bool gombAllapot = false;
 bool elozo_gombAllapot = false;
 bool kombinaltAllapot = false;
@@ -55,6 +57,7 @@ const unsigned long PING_INTERVALLUM = 500;
 const unsigned long KIJELZO_FRISSITES = 500;  // 500ms-enként frissül a kijelző
 const unsigned long WIFI_UJRACSATLAKOZAS = 10000;  // 10mp-enként próbál újracsatlakozni
 
+//Wifi kapcsolat 
 bool wifiConnected = false;
 int wifiReconnectAttempts = 0;
 const int MAX_RECONNECT_ATTEMPTS = 3;
@@ -72,8 +75,8 @@ void setup() {
     Serial.println(F("OLED inicializálás sikertelen!"));
     while (1);
   }
-  
   display.clearDisplay();
+  display.setRotation(2); //A kijelző elforgatása, ha nincs forgatásra szükség,akkor csak kommentelni kell
   display.setTextColor(WHITE);
   display.setTextSize(1);
   display.setCursor(0, 0);
@@ -95,7 +98,7 @@ void setup() {
     display.setCursor(0, 0);
     display.println("HX711 HIBA!");
     display.display();
-    //while (1);
+    //while (1); // Ha ez benne van meg akasztja a teljes kódot.
   } else {
     LoadCell.setCalFactor(calibrationValue);
     Serial.println("HX711 inicializálva");
