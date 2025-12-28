@@ -80,7 +80,25 @@ void setup() {
 
   pinMode(tareButton, INPUT_PULLUP);
   pinMode(testButton, INPUT_PULLUP);
+  WiFi.begin(ssid, password);
 
+  int proba = 0;
+  Serial.print("Csatlakozás az ESP32-höz...");
+  while (WiFi.status() != WL_CONNECTED && proba < 20) {
+    delay(500);
+    Serial.print(".");
+    proba++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi kapcsolat létrejött!");
+    Serial.print("IP cím: ");
+    Serial.println(WiFi.localIP());
+    //Serial.print("Vevő IP: ");
+    //Serial.println(vevoIP);
+  } else {
+    Serial.println("\nNem sikerült csatlakozni a WiFi-hez!");
+  }
   // HX711 inicializálása
   /*scale.begin(HX711_DT, HX711_SCK);
   if (scale.is_ready()) {
@@ -110,24 +128,10 @@ void setup() {
   }
 
   //WiFi csatlakozás
-  WiFi.begin(ssid, password);
-  int proba = 0;
-  Serial.print("Csatlakozás az ESP32-höz...");
-  while (WiFi.status() != WL_CONNECTED && proba < 20) {
-    delay(500);
-    Serial.print(".");
-    proba++;
-  }
+  
+  
   //Serial.println("\nCsatlakozva!");
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi kapcsolat létrejött!");
-    Serial.print("IP cím: ");
-    Serial.println(WiFi.localIP());
-    //Serial.print("Vevő IP: ");
-    //Serial.println(vevoIP);
-  } else {
-    Serial.println("\nNem sikerült csatlakozni a WiFi-hez!");
-  }
+  
 
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
   timer.setInterval(1000L, displayData);
