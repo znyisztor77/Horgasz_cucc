@@ -86,7 +86,7 @@ void setup() {
   // HX711 inicializálás
   Serial.println("HX711 inicializálása...");
   LoadCell.begin();
-  float calibrationValue = 696.0;
+  float calibrationValue = 60.23; // Ez volt az alap 696.0
   unsigned long stabilizingtime = 2000;
   boolean _tare = true;
   
