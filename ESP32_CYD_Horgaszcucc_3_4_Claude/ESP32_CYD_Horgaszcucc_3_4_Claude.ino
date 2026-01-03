@@ -2,9 +2,12 @@
 //Configuration file for v9.2.2
 //ESP32 Dev Modul
 
+//ESP32 Vevő - Version 7
+//Csak a Receiver Stopper logika módosítva
+
 #include <WebServer.h>
 #include <WiFi.h>
-#include <LVGL_CYD.h>  // https://github.com/ropg/LVGL_CYD
+#include <LVGL_CYD.h>
 
 const char *ssid = "ESP32_AP";
 const char *password = "12345678";
@@ -13,14 +16,10 @@ WebServer server(80);
 // Kapcsolat állapot
 bool adoKapcsolva = false;
 bool gombAllapot = false;
-bool pecaAllapot = false; // A peca fel és levétel nullázza a számlálót a stopperben 
-// A stopper elindul ha a peca rajta van, 
-//A peca levétele után a a stopper meg áll, ha a pece újra rá kerül akkor nullától indul
-//a időzítőnél pedig a feltétel ugyan ez csak nem nuláz hanem a beállított értékről indul újra.
 unsigned long utolsoUzenet = 0;
-const unsigned long TIMEOUT = 5000;  // 5 másodperc timeout
+const unsigned long TIMEOUT = 5000;
 
-// HTML oldal
+// HTML oldal (ugyanaz marad)
 const char webpage[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html>
@@ -158,7 +157,6 @@ bool isTransmitterConnected = false;
 static uint32_t count = 1;
 
 // Timer pointerek
-static lv_timer_t *main_screen_wifi_timer = nullptr;  // Main screen WiFi timer
 static lv_timer_t *shared_wifi_status_timer = nullptr;
 static lv_timer_t *receiver_stopper_timer = nullptr;
 static lv_timer_t *receiver_timer = nullptr;
@@ -170,7 +168,6 @@ static lv_obj_t *lbl_time_receiver_timer = nullptr;
 static lv_obj_t *lbl_time_receiver = nullptr;
 static lv_obj_t *lbl_time_timer = nullptr;
 static lv_obj_t *lbl_wifi_state = nullptr;
-static lv_obj_t *main_wifi_icon = nullptr;  // Main screen WiFi ikon
 static uint32_t receiver_timer_sec = 0;
 static bool running = false;
 static uint32_t elapsed_ms = 0;
@@ -180,7 +177,7 @@ static bool timer_running = false;
 static bool previousConnectionState = false;
 
 // MÓDOSÍTÁS: Receiver stopper állapot követése
-static bool elozo_gombAllapot_receiver = false;
+static bool prev_gombAllapot_receiver = false;
 
 void handleRoot() {
   server.send(200, "text/html", webpage);
@@ -190,15 +187,16 @@ void handleStatus() {
   if (millis() - utolsoUzenet > TIMEOUT) {
     adoKapcsolva = false;
   }
-
-  String json = "{\"connected\":" + String(adoKapcsolva ? "true" : "false") + ",\"buttonPressed\":" + String(gombAllapot ? "true" : "false") + "}";
+  
+  String json = "{\"connected\":" + String(adoKapcsolva ? "true" : "false") + 
+                ",\"buttonPressed\":" + String(gombAllapot ? "true" : "false") + "}";
   server.send(200, "application/json", json);
 }
 
 void handlePing() {
   utolsoUzenet = millis();
   adoKapcsolva = true;
-
+  
   if (server.hasArg("button")) {
     gombAllapot = (server.arg("button") == "1");
     server.send(200, "text/plain", "OK");
@@ -218,7 +216,7 @@ void setup() {
 
   server.begin();
   Serial.println("Web szerver elindult");
-  Serial.println("Nyisd meg böngészőben: http://" + IP.toString());
+  Serial.println("IP: http://" + IP.toString());
 
   LVGL_CYD::begin(USB_LEFT);
   LVGL_CYD::led(255, 0, 0);
@@ -226,167 +224,35 @@ void setup() {
   main_screen();
 }
 
-//////////////////// Timerek törlése ////////////////////////////
 void cleanup_all_screen_specific_timers() {
-  // Main screen WiFi timer törlése
-  if (main_screen_wifi_timer) {
-    lv_timer_del(main_screen_wifi_timer);
-    main_screen_wifi_timer = nullptr;
-  }
-  
   if (shared_wifi_status_timer) {
     lv_timer_del(shared_wifi_status_timer);
     shared_wifi_status_timer = nullptr;
   }
-  
   if (receiver_stopper_timer) {
     lv_timer_del(receiver_stopper_timer);
     receiver_stopper_timer = nullptr;
     elapsed_receiver_ms = 0;
-    if (lbl_time_receiver) lv_label_set_text(lbl_time_receiver, "00:00:00");
   }
-  
   if (receiver_timer) {
     lv_timer_del(receiver_timer);
     receiver_timer = nullptr;
     receiver_timer_sec = 0;
-    if (lbl_time_receiver_timer) lv_label_set_text(lbl_time_receiver_timer, "00:00:00");
   }
-  
   if (stopper_timer) {
     lv_timer_del(stopper_timer);
     stopper_timer = nullptr;
     running = false;
     elapsed_ms = 0;
-    if (lbl_time_stopper) lv_label_set_text(lbl_time_stopper, "00:00:00");
   }
-  
   if (timer_timer) {
     lv_timer_del(timer_timer);
     timer_timer = nullptr;
     timer_running = false;
     timer_duration_sec = 0;
-    if (lbl_time_timer) lv_label_set_text(lbl_time_timer, "00:00:00");
   }
 }
 
-//////////////////// Connection Status ////////////////////////////
-void updateWiFiConnectionState() {
-  isTransmitterConnected = adoKapcsolva;
-  if (isTransmitterConnected) {
-    LVGL_CYD::led(0, 255, 0);  // Zöld LED
-  } else {
-    LVGL_CYD::led(0, 0, 255);  // Kék LED
-  }
-}
-
-// Main screen WiFi frissítő callback
-static void main_screen_wifi_update_cb(lv_timer_t *t) {
-  updateWiFiConnectionState();
-
-  if (isTransmitterConnected != previousConnectionState) {
-    previousConnectionState = isTransmitterConnected;
-
-    if (main_wifi_icon) {
-      if (isTransmitterConnected) {
-        lv_label_set_text(main_wifi_icon, LV_SYMBOL_WIFI);
-        lv_obj_set_style_text_color(main_wifi_icon, lv_color_hex(0x00ff00), LV_PART_MAIN);
-      } else {
-        lv_label_set_text(main_wifi_icon, LV_SYMBOL_WIFI);
-        lv_obj_set_style_text_color(main_wifi_icon, lv_color_hex(0xff0000), LV_PART_MAIN);
-      }
-    }
-  }
-}
-
-// Alképernyők WiFi frissítő callback
-static void wifi_status_update_cb(lv_timer_t *t) {
-  updateWiFiConnectionState();
-
-  if (isTransmitterConnected != previousConnectionState) {
-    previousConnectionState = isTransmitterConnected;
-
-    if (lbl_wifi_state) {
-      if (isTransmitterConnected) {
-        lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
-        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
-      } else {
-        lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
-        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
-      }
-    }
-  }
-}
-
-//////////////////// Main Menu ////////////////////////////
-void main_screen() {
-  lv_obj_clean(lv_screen_active());
-
-  lv_obj_t *main_text = lv_label_create(lv_screen_active());
-  lv_obj_set_style_text_font(main_text, &lv_font_montserrat_18, LV_PART_MAIN);
-  lv_label_set_text(main_text, "FishingTimer v1.0.");
-  lv_obj_align(main_text, LV_ALIGN_TOP_LEFT, 0, 10);
-
-  // WiFi ikon létrehozása a main screen-en
-  main_wifi_icon = lv_label_create(lv_screen_active());
-  lv_obj_set_style_text_font(main_wifi_icon, &lv_font_montserrat_18, LV_PART_MAIN);
-  lv_obj_align(main_wifi_icon, LV_ALIGN_TOP_RIGHT, 0, 10);
-
-  // Kezdeti WiFi állapot beállítása
-  updateWiFiConnectionState();
-  if (isTransmitterConnected) {
-    lv_label_set_text(main_wifi_icon, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(main_wifi_icon, lv_color_hex(0x00ff00), LV_PART_MAIN);
-  } else {
-    lv_label_set_text(main_wifi_icon, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(main_wifi_icon, lv_color_hex(0xff0000), LV_PART_MAIN);
-  }
-  previousConnectionState = isTransmitterConnected;
-
-  // Main screen WiFi timer létrehozása
-  if (!main_screen_wifi_timer) {
-    main_screen_wifi_timer = lv_timer_create(main_screen_wifi_update_cb, 1000, NULL);
-  }
-
-  auto create_nav_btn = [](const char *txt, lv_coord_t y_offset, lv_event_cb_t cb) {
-    lv_obj_t *btn = lv_button_create(lv_screen_active());
-    lv_obj_set_size(btn, 300, 30);
-    lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y_offset);
-    lv_obj_t *lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, txt);
-    lv_obj_center(lbl);
-    lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
-  };
-
-  create_nav_btn("Vevo stopper", 60, [](lv_event_t *e) {
-    cleanup_all_screen_specific_timers();
-    lv_obj_clean(lv_screen_active());
-    go_receiverStopper();
-  });
-  create_nav_btn("Vevo idozito", 100, [](lv_event_t *e) {
-    cleanup_all_screen_specific_timers();
-    lv_obj_clean(lv_screen_active());
-    go_receiverTimer();
-  });
-  create_nav_btn("Stopper", 140, [](lv_event_t *e) {
-    cleanup_all_screen_specific_timers();
-    lv_obj_clean(lv_screen_active());
-    go_stopper();
-  });
-  create_nav_btn("Idozito", 180, [](lv_event_t *e) {
-    cleanup_all_screen_specific_timers();
-    lv_obj_clean(lv_screen_active());
-    go_timer();
-  });
-
-  String halSzoveg = "Fogott hal: " + String((int)count - 1);
-  lv_obj_t *halDb_text = lv_label_create(lv_screen_active());
-  lv_obj_set_style_text_font(halDb_text, &lv_font_montserrat_14, LV_PART_MAIN);
-  lv_label_set_text(halDb_text, halSzoveg.c_str());
-  lv_obj_align(halDb_text, LV_ALIGN_TOP_MID, 0, 220);
-}
-
-//////////////////// Exit Button ////////////////////////////
 lv_obj_t *createExitButton() {
   lv_obj_t *exit_btn = lv_obj_create(lv_screen_active());
   lv_obj_clear_flag(exit_btn, LV_OBJ_FLAG_SCROLLABLE);
@@ -413,14 +279,41 @@ lv_obj_t *createExitButton() {
   return exit_btn;
 }
 
-//////////////////// Receiver Stopper ////////////////////////////
+void updateWiFiConnectionState() {
+  isTransmitterConnected = adoKapcsolva;
+  if (isTransmitterConnected) {
+    LVGL_CYD::led(0, 255, 0);
+  } else {
+    LVGL_CYD::led(0, 0, 255);
+  }
+}
+
+static void wifi_status_update_cb(lv_timer_t *t) {
+  updateWiFiConnectionState();
+
+  if (isTransmitterConnected != previousConnectionState) {
+    previousConnectionState = isTransmitterConnected;
+
+    if (lbl_wifi_state) {
+      if (isTransmitterConnected) {
+        lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
+        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
+      } else {
+        lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat!");
+        lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
+      }
+    }
+  }
+}
+
+//////////////////// MÓDOSÍTOTT Receiver Stopper ////////////////////////////
 static void update_receiver_stopper_cb(lv_timer_t *t) {
   // Jelenlegi állapot
-  bool jelenlegiGombAllapot = gombAllapot;
+  bool currentGombAllapot = gombAllapot;
   
   // Állapotváltozás detektálása
-  if (jelenlegiGombAllapot != elozo_gombAllapot_receiver) {
-    if (jelenlegiGombAllapot) {
+  if (currentGombAllapot != prev_gombAllapot_receiver) {
+    if (currentGombAllapot) {
       // Inaktívról aktívra váltott -> NULLÁZÁS
       elapsed_receiver_ms = 0;
       Serial.println("Receiver Stopper: NULLÁZVA és INDUL");
@@ -428,10 +321,10 @@ static void update_receiver_stopper_cb(lv_timer_t *t) {
       // Aktívról inaktívra váltott -> MEGÁLL
       Serial.println("Receiver Stopper: MEGÁLL");
     }
-    elozo_gombAllapot_receiver = jelenlegiGombAllapot;
+    prev_gombAllapot_receiver = currentGombAllapot;
   }
-
-  // JAVÍTVA: Csak akkor fut, ha van kapcsolat ÉS a gomb aktív
+  
+  // Csak akkor számol, ha aktív ÉS van kapcsolat
   if (adoKapcsolva && gombAllapot) {
     elapsed_receiver_ms += 1000;
     uint32_t sec = elapsed_receiver_ms / 1000;
@@ -457,7 +350,7 @@ void go_receiverStopper(void) {
     lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
   } else {
-    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
+    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat!");
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
   }
   previousConnectionState = isTransmitterConnected;
@@ -486,6 +379,7 @@ void go_receiverStopper(void) {
     btn_reset, [](lv_event_t *e) {
       elapsed_receiver_ms = 0;
       lv_label_set_text(lbl_time_receiver, "00:00:00");
+      Serial.println("Manuális reset");
     },
     LV_EVENT_CLICKED, NULL);
 
@@ -504,16 +398,33 @@ void go_receiverStopper(void) {
     },
     LV_EVENT_CLICKED, label_fish);
 
-    // Állapot inicializálása
-  elozo_gombAllapot_receiver = gombAllapot;
-
+  // Állapot inicializálása
+  prev_gombAllapot_receiver = gombAllapot;
+  
   receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
 }
 
 //////////////////// Receiver Timer ////////////////////////////
+
 static void update_receiver_timer_cb(lv_timer_t *) {
-  // JAVÍTVA: Csak akkor fut, ha van kapcsolat ÉS a gomb aktív ÉS van idő
-  if (adoKapcsolva && gombAllapot && receiver_timer_sec > 0) {
+  bool currentActive = (adoKapcsolva && gombAllapot);
+  
+  // Állapotváltozás detektálása
+  if (currentActive && !prev_receiver_timer_state) {
+    // Peca rákerült -> Visszaállítás a beállított értékre és indítás
+    receiver_timer_sec = saved_receiver_timer_sec;
+    Serial.print("Receiver Timer: START (");
+    Serial.print(receiver_timer_sec);
+    Serial.println(" mp)");
+  } else if (!currentActive && prev_receiver_timer_state) {
+    // Peca levéve -> STOP (az aktuális érték megmarad)
+    Serial.println("Receiver Timer: STOP");
+  }
+  
+  prev_receiver_timer_state = currentActive;
+  
+  // Csak akkor számol lefelé, ha aktív ÉS van idő
+  if (currentActive && receiver_timer_sec > 0) {
     receiver_timer_sec--;
     uint32_t sec = receiver_timer_sec % 60;
     uint32_t min = (receiver_timer_sec / 60) % 60;
@@ -564,7 +475,9 @@ void go_receiverTimer(void) {
   lv_obj_add_event_cb(
     btn_reset, [](lv_event_t *e) {
       receiver_timer_sec = 0;
+      saved_receiver_timer_sec = 0;
       lv_label_set_text(lbl_time_receiver_timer, "00:00:00");
+      Serial.println("Receiver Timer: Reset");
     },
     LV_EVENT_CLICKED, NULL);
 
@@ -576,7 +489,8 @@ void go_receiverTimer(void) {
   lv_obj_center(lbl_plus);
   lv_obj_add_event_cb(
     btn_plus, [](lv_event_t *e) {
-      receiver_timer_sec += 60;
+      saved_receiver_timer_sec += 60;
+      receiver_timer_sec = saved_receiver_timer_sec;
       uint32_t sec = receiver_timer_sec % 60;
       uint32_t min = (receiver_timer_sec / 60) % 60;
       uint32_t hour = receiver_timer_sec / 3600;
@@ -594,7 +508,10 @@ void go_receiverTimer(void) {
   lv_obj_center(lbl_minus);
   lv_obj_add_event_cb(
     btn_minus, [](lv_event_t *e) {
-      if (receiver_timer_sec >= 60) receiver_timer_sec -= 60;
+      if (saved_receiver_timer_sec >= 60) {
+        saved_receiver_timer_sec -= 60;
+        receiver_timer_sec = saved_receiver_timer_sec;
+      }
       uint32_t sec = receiver_timer_sec % 60;
       uint32_t min = (receiver_timer_sec / 60) % 60;
       uint32_t hour = receiver_timer_sec / 3600;
@@ -619,8 +536,13 @@ void go_receiverTimer(void) {
     },
     LV_EVENT_CLICKED, label_fish);
 
+  // Állapot inicializálása
+  saved_receiver_timer_sec = receiver_timer_sec;
+  prev_receiver_timer_state = (adoKapcsolva && gombAllapot);
+  
   receiver_timer = lv_timer_create(update_receiver_timer_cb, 1000, NULL);
 }
+
 
 //////////////////// Stopper ////////////////////////////
 static void update_stopper_cb(lv_timer_t *t) {
