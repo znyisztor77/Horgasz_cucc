@@ -73,7 +73,7 @@ void setup() {
   // OLED inicializálás
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println(F("OLED inicializálás sikertelen!"));
-    while (1);
+    //while (1);
   }
   display.clearDisplay();
   display.setRotation(2); //A kijelző elforgatása, ha nincs forgatásra szükség,akkor csak kommentelni kell
