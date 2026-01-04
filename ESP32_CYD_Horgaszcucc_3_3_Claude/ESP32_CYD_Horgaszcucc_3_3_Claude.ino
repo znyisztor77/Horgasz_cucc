@@ -510,7 +510,7 @@ void go_receiverStopper(void) {
   receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
 }
 
-//////////////////// Receiver Timer (MÓDOSÍTOTT 0104) ////////////////////////////
+//////////////////// Receiver Timer (MÓDOSÍTOTT 0104nyipet) ////////////////////////////
 static uint32_t saved_receiver_timer_sec = 0;  // Beállított kezdeti érték
 static bool prev_receiver_timer_active = false;
 
