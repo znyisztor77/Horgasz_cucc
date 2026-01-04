@@ -510,7 +510,7 @@ void go_receiverStopper(void) {
   receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
 }
 
-//////////////////// Receiver Timer (MÓDOSÍTOTT 20260104) ////////////////////////////
+//////////////////// Receiver Timer ////////////////////////////
 static uint32_t saved_receiver_timer_sec = 0;  // Beállított kezdeti érték
 static bool prev_receiver_timer_active = false;
 
@@ -519,22 +519,25 @@ static void update_receiver_timer_cb(lv_timer_t *) {
   
   // Állapotváltozás detektálása
   if (currentActive && !prev_receiver_timer_active) {
-    // Inaktívról aktívra -> Visszaállítás a KEZDETI ÉRTÉKRE
+    // Inaktívról aktívra -> Visszaállítás a KEZDETI ÉRTÉKRE (csak indításkor!)
     receiver_timer_sec = saved_receiver_timer_sec;
-    Serial.print("Receiver Timer: START (");
+    Serial.print("Receiver Timer: START - Visszaállítva ");
     Serial.print(receiver_timer_sec);
-    Serial.println(" mp)");
-  } else if (!currentActive && prev_receiver_timer_active) {
-    // Aktívról inaktívra -> STOP és VISSZAÁLLÍTÁS
-    receiver_timer_sec = saved_receiver_timer_sec;
-    Serial.println("Receiver Timer: STOP (vissza a kezdeti értékre)");
-    // Kijelző frissítése
+    Serial.println(" mp-re");
+    
+    // Kijelző frissítése az új értékkel
     uint32_t sec = receiver_timer_sec % 60;
     uint32_t min = (receiver_timer_sec / 60) % 60;
     uint32_t hour = receiver_timer_sec / 3600;
     char buf[16];
     sprintf(buf, "%02u:%02u:%02u", hour, min, sec);
     lv_label_set_text(lbl_time_receiver_timer, buf);
+  } else if (!currentActive && prev_receiver_timer_active) {
+    // Aktívról inaktívra -> csak STOP (nem nulláz!)
+    Serial.print("Receiver Timer: STOP ");
+    Serial.print(receiver_timer_sec);
+    Serial.println(" mp-nél");
+    // NEM állítjuk vissza az értéket, megmarad ahol megállt!
   }
   
   prev_receiver_timer_active = currentActive;
