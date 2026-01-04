@@ -1,6 +1,7 @@
 //lv_conf.h
 //Configuration file for v9.2.2
 //ESP32 Dev Modul
+//Github https://github.com/znyisztor77/Horgasz_cucc
 
 #include <WebServer.h>
 #include <WiFi.h>
