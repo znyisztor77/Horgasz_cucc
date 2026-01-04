@@ -180,8 +180,7 @@ static bool timer_running = false;
 static bool previousConnectionState = false;
 static bool elozo_gombAllapot_receiver = false;
 
-static uint32_t mentett_receiver_timer_sec = 0;
-bool elozo_receiver_timer_state = false;
+
 
 void handleRoot() {
   server.send(200, "text/html", webpage);
@@ -511,28 +510,37 @@ void go_receiverStopper(void) {
   receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
 }
 
-//////////////////// Receiver Timer ////////////////////////////
-//static uint32_t mentett_receiver_timer_sec = 0; //Itt nem, jó mert globális változónak kell lennie.
-bool jelenlegiAktivitas = (adoKapcsolva && gombAllapot);
+//////////////////// Receiver Timer (MÓDOSÍTOTT 0104) ////////////////////////////
+static uint32_t saved_receiver_timer_sec = 0;  // Beállított kezdeti érték
+static bool prev_receiver_timer_active = false;
 
 static void update_receiver_timer_cb(lv_timer_t *) {
+  bool currentActive = (adoKapcsolva && gombAllapot && receiver_timer_sec > 0);
+  
   // Állapotváltozás detektálása
-  if (jelenlegiAktivitas && !elozo_receiver_timer_state) {
-    // Peca rákerült -> Visszaállítás a beállított értékre és indítás
-    receiver_timer_sec = mentett_receiver_timer_sec;
+  if (currentActive && !prev_receiver_timer_active) {
+    // Inaktívról aktívra -> Visszaállítás a KEZDETI ÉRTÉKRE
+    receiver_timer_sec = saved_receiver_timer_sec;
     Serial.print("Receiver Timer: START (");
-    //Serial.print(receiver_timer_sec);
-    //Serial.println(" mp)");
-  } else if (!jelenlegiAktivitas && elozo_receiver_timer_state) {
-    // Peca levéve -> STOP (az aktuális érték megmarad)
-    Serial.println("Receiver Timer: STOP");
+    Serial.print(receiver_timer_sec);
+    Serial.println(" mp)");
+  } else if (!currentActive && prev_receiver_timer_active) {
+    // Aktívról inaktívra -> STOP és VISSZAÁLLÍTÁS
+    receiver_timer_sec = saved_receiver_timer_sec;
+    Serial.println("Receiver Timer: STOP (vissza a kezdeti értékre)");
+    // Kijelző frissítése
+    uint32_t sec = receiver_timer_sec % 60;
+    uint32_t min = (receiver_timer_sec / 60) % 60;
+    uint32_t hour = receiver_timer_sec / 3600;
+    char buf[16];
+    sprintf(buf, "%02u:%02u:%02u", hour, min, sec);
+    lv_label_set_text(lbl_time_receiver_timer, buf);
   }
-
-  elozo_receiver_timer_state = jelenlegiAktivitas;
-
-
-  // JAVÍTVA: Csak akkor fut, ha van kapcsolat ÉS a gomb aktív ÉS van idő
-  if (adoKapcsolva && gombAllapot && receiver_timer_sec > 0) {
+  
+  prev_receiver_timer_active = currentActive;
+  
+  // Csak akkor számol lefelé, ha aktív
+  if (currentActive) {
     receiver_timer_sec--;
     uint32_t sec = receiver_timer_sec % 60;
     uint32_t min = (receiver_timer_sec / 60) % 60;
@@ -556,7 +564,7 @@ void go_receiverTimer(void) {
     lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
   } else {
-    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
+    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat!");
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
   }
 
@@ -583,8 +591,9 @@ void go_receiverTimer(void) {
   lv_obj_add_event_cb(
     btn_reset, [](lv_event_t *e) {
       receiver_timer_sec = 0;
-      mentett_receiver_timer_sec = 0;
+      saved_receiver_timer_sec = 0;
       lv_label_set_text(lbl_time_receiver_timer, "00:00:00");
+      Serial.println("Receiver Timer: Reset");
     },
     LV_EVENT_CLICKED, NULL);
 
@@ -596,9 +605,8 @@ void go_receiverTimer(void) {
   lv_obj_center(lbl_plus);
   lv_obj_add_event_cb(
     btn_plus, [](lv_event_t *e) {
-      //receiver_timer_sec += 60;
-      mentett_receiver_timer_sec += 60;
-      receiver_timer_sec = mentett_receiver_timer_sec;
+      saved_receiver_timer_sec += 60;
+      receiver_timer_sec = saved_receiver_timer_sec;
       uint32_t sec = receiver_timer_sec % 60;
       uint32_t min = (receiver_timer_sec / 60) % 60;
       uint32_t hour = receiver_timer_sec / 3600;
@@ -616,10 +624,9 @@ void go_receiverTimer(void) {
   lv_obj_center(lbl_minus);
   lv_obj_add_event_cb(
     btn_minus, [](lv_event_t *e) {
-      if (receiver_timer_sec >= 60) {
-        //receiver_timer_sec -= 60;
-        mentett_receiver_timer_sec -= 60;
-        receiver_timer_sec = mentett_receiver_timer_sec;
+      if (saved_receiver_timer_sec >= 60) {
+        saved_receiver_timer_sec -= 60;
+        receiver_timer_sec = saved_receiver_timer_sec;
       }
       uint32_t sec = receiver_timer_sec % 60;
       uint32_t min = (receiver_timer_sec / 60) % 60;
@@ -645,13 +652,12 @@ void go_receiverTimer(void) {
     },
     LV_EVENT_CLICKED, label_fish);
 
-  mentett_receiver_timer_sec = receiver_timer_sec;
-  //Állapot inicializálás
-  elozo_receiver_timer_state = (adoKapcsolva && gombAllapot);
-
+  // Állapot inicializálása
+  saved_receiver_timer_sec = receiver_timer_sec;
+  prev_receiver_timer_active = false;
+  
   receiver_timer = lv_timer_create(update_receiver_timer_cb, 1000, NULL);
 }
-
 //////////////////// Stopper ////////////////////////////
 static void update_stopper_cb(lv_timer_t *t) {
   if (running) {

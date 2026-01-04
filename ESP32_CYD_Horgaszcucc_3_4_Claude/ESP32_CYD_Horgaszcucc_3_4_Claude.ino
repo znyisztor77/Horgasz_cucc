@@ -1,7 +1,3 @@
-//lv_conf.h
-//Configuration file for v9.2.2
-//ESP32 Dev Modul
-
 //ESP32 Vevő - Version 7
 //Csak a Receiver Stopper logika módosítva
 
@@ -404,27 +400,37 @@ void go_receiverStopper(void) {
   receiver_stopper_timer = lv_timer_create(update_receiver_stopper_cb, 1000, NULL);
 }
 
-//////////////////// Receiver Timer ////////////////////////////
+//////////////////// Receiver Timer (NEM MÓDOSÍTOTT) ////////////////////////////
+static uint32_t saved_receiver_timer_sec = 0;  // Beállított kezdeti érték
+static bool prev_receiver_timer_active = false;
 
 static void update_receiver_timer_cb(lv_timer_t *) {
-  bool currentActive = (adoKapcsolva && gombAllapot);
+  bool currentActive = (adoKapcsolva && gombAllapot && receiver_timer_sec > 0);
   
   // Állapotváltozás detektálása
-  if (currentActive && !prev_receiver_timer_state) {
-    // Peca rákerült -> Visszaállítás a beállított értékre és indítás
+  if (currentActive && !prev_receiver_timer_active) {
+    // Inaktívról aktívra -> Visszaállítás a KEZDETI ÉRTÉKRE
     receiver_timer_sec = saved_receiver_timer_sec;
     Serial.print("Receiver Timer: START (");
     Serial.print(receiver_timer_sec);
     Serial.println(" mp)");
-  } else if (!currentActive && prev_receiver_timer_state) {
-    // Peca levéve -> STOP (az aktuális érték megmarad)
-    Serial.println("Receiver Timer: STOP");
+  } else if (!currentActive && prev_receiver_timer_active) {
+    // Aktívról inaktívra -> STOP és VISSZAÁLLÍTÁS
+    receiver_timer_sec = saved_receiver_timer_sec;
+    Serial.println("Receiver Timer: STOP (vissza a kezdeti értékre)");
+    // Kijelző frissítése
+    uint32_t sec = receiver_timer_sec % 60;
+    uint32_t min = (receiver_timer_sec / 60) % 60;
+    uint32_t hour = receiver_timer_sec / 3600;
+    char buf[16];
+    sprintf(buf, "%02u:%02u:%02u", hour, min, sec);
+    lv_label_set_text(lbl_time_receiver_timer, buf);
   }
   
-  prev_receiver_timer_state = currentActive;
+  prev_receiver_timer_active = currentActive;
   
-  // Csak akkor számol lefelé, ha aktív ÉS van idő
-  if (currentActive && receiver_timer_sec > 0) {
+  // Csak akkor számol lefelé, ha aktív
+  if (currentActive) {
     receiver_timer_sec--;
     uint32_t sec = receiver_timer_sec % 60;
     uint32_t min = (receiver_timer_sec / 60) % 60;
@@ -448,7 +454,7 @@ void go_receiverTimer(void) {
     lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
   } else {
-    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
+    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat!");
     lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
   }
 
@@ -538,13 +544,12 @@ void go_receiverTimer(void) {
 
   // Állapot inicializálása
   saved_receiver_timer_sec = receiver_timer_sec;
-  prev_receiver_timer_state = (adoKapcsolva && gombAllapot);
+  prev_receiver_timer_active = false;
   
   receiver_timer = lv_timer_create(update_receiver_timer_cb, 1000, NULL);
 }
 
-
-//////////////////// Stopper ////////////////////////////
+//////////////////// Stopper (NEM MÓDOSÍTOTT) ////////////////////////////
 static void update_stopper_cb(lv_timer_t *t) {
   if (running) {
     elapsed_ms += 1000;
