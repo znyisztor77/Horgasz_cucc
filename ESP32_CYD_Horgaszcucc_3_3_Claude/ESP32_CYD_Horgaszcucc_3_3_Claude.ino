@@ -13,10 +13,7 @@ WebServer server(80);
 // Kapcsolat állapot
 bool adoKapcsolva = false;
 bool gombAllapot = false;
-bool pecaAllapot = false;  // A peca fel és levétel nullázza a számlálót a stopperben
-// A stopper elindul ha a peca rajta van,
-//A peca levétele után a a stopper meg áll, ha a pece újra rá kerül akkor nullától indul
-//a időzítőnél pedig a feltétel ugyan ez csak nem nuláz hanem a beállított értékről indul újra.
+bool pecaAllapot = false;
 unsigned long utolsoUzenet = 0;
 const unsigned long TIMEOUT = 5000;  // 5 másodperc timeout
 
@@ -164,28 +161,32 @@ static lv_timer_t *receiver_stopper_timer = nullptr;
 static lv_timer_t *receiver_timer = nullptr;
 static lv_timer_t *stopper_timer = nullptr;
 static lv_timer_t *timer_timer = nullptr;
-
-static uint32_t elapsed_receiver_ms = 0;
+static lv_obj_t *lbl_time_stopper = nullptr;
 static lv_obj_t *lbl_time_receiver_timer = nullptr;
 static lv_obj_t *lbl_time_receiver = nullptr;
 static lv_obj_t *lbl_time_timer = nullptr;
 static lv_obj_t *lbl_wifi_state = nullptr;
 static lv_obj_t *main_wifi_icon = nullptr;  // Main screen WiFi ikon
+
+// Timer áltozók
 static uint32_t receiver_timer_sec = 0;
-static bool running = false;
+static uint32_t elapsed_receiver_ms = 0;
 static uint32_t elapsed_ms = 0;
-static lv_obj_t *lbl_time_stopper = nullptr;
 static uint32_t timer_duration_sec = 0;
-static bool timer_running = false;
+
+//Alap állapotok
+static bool running = false;        // stopper
+static bool timer_running = false;  // időzítő
 static bool previousConnectionState = false;
 static bool elozo_gombAllapot_receiver = false;
 
 
-
+//////////////////// Végpontok létrehozása ////////////////////////////
 void handleRoot() {
   server.send(200, "text/html", webpage);
 }
 
+// Állapotok ellenörzése
 void handleStatus() {
   if (millis() - utolsoUzenet > TIMEOUT) {
     adoKapcsolva = false;
@@ -194,7 +195,7 @@ void handleStatus() {
   String json = "{\"connected\":" + String(adoKapcsolva ? "true" : "false") + ",\"buttonPressed\":" + String(gombAllapot ? "true" : "false") + "}";
   server.send(200, "application/json", json);
 }
-
+// Kapcsolat ellenörzése
 void handlePing() {
   utolsoUzenet = millis();
   adoKapcsolva = true;
@@ -209,9 +210,10 @@ void handlePing() {
 
 void setup() {
   Serial.begin(115200);
-  WiFi.softAP(ssid, password);
+  WiFi.softAP(ssid, password);  // A vevő AccessPoint-ként beállítása
   IPAddress IP = WiFi.softAPIP();
 
+  //Szerver végpontok
   server.on("/", handleRoot);
   server.on("/status", handleStatus);
   server.on("/ping", handlePing);
@@ -220,13 +222,17 @@ void setup() {
   Serial.println("Web szerver elindult");
   Serial.println("Nyisd meg böngészőben: http://" + IP.toString());
 
+  //Kijelző és érintőpad inicializálása, A képernyő elforgatása.
   LVGL_CYD::begin(USB_LEFT);
-  LVGL_CYD::led(255, 0, 0);
+  LVGL_CYD::led(255, 0, 0);  //A panelen lővő led bekapcsolása
 
-  main_screen();
+  main_screen();  //A főképernyő indítása
 }
 
 //////////////////// Timerek törlése ////////////////////////////
+/*A timerek törlésére azért van szükség,
+hogy a különbözö ablakok közötti lépkedéskor ne ragadjanak be a memóriába
+ezzel is gyorsítva az eszköz működését.*/
 void cleanup_all_screen_specific_timers() {
   // Main screen WiFi timer törlése
   if (main_screen_wifi_timer) {
@@ -271,6 +277,9 @@ void cleanup_all_screen_specific_timers() {
 }
 
 //////////////////// Connection Status ////////////////////////////
+/*Wifi kapcsolat állapotának ellenörzése. 
+Ezt a függvényt használja az összes kijelző az állapot ellenörzésére
+*/
 void updateWiFiConnectionState() {
   isTransmitterConnected = adoKapcsolva;
   if (isTransmitterConnected) {
@@ -280,7 +289,7 @@ void updateWiFiConnectionState() {
   }
 }
 
-// Main screen WiFi frissítő callback
+// Main screen(Fő képernyő) WiFi kapcsolat frissítő
 static void main_screen_wifi_update_cb(lv_timer_t *t) {
   updateWiFiConnectionState();
 
@@ -299,7 +308,7 @@ static void main_screen_wifi_update_cb(lv_timer_t *t) {
   }
 }
 
-// Alképernyők WiFi frissítő callback
+// Alképernyők WiFi kapcsolat állapot frissítése
 static void wifi_status_update_cb(lv_timer_t *t) {
   updateWiFiConnectionState();
 
@@ -318,7 +327,7 @@ static void wifi_status_update_cb(lv_timer_t *t) {
   }
 }
 
-//////////////////// Main Menu ////////////////////////////
+//////////////////// Main Screen ////////////////////////////
 void main_screen() {
   lv_obj_clean(lv_screen_active());
 
@@ -347,7 +356,7 @@ void main_screen() {
   if (!main_screen_wifi_timer) {
     main_screen_wifi_timer = lv_timer_create(main_screen_wifi_update_cb, 1000, NULL);
   }
-
+  // Főképernyő vezérlőgombok létrehozása
   auto create_nav_btn = [](const char *txt, lv_coord_t y_offset, lv_event_cb_t cb) {
     lv_obj_t *btn = lv_button_create(lv_screen_active());
     lv_obj_set_size(btn, 300, 30);
@@ -379,14 +388,17 @@ void main_screen() {
     go_timer();
   });
 
-  String halSzoveg = "Fogott hal: " + String((int)count - 1);
+  //A fogott halak számlálása gomb
+  String fishText = "Fogott hal: " + String((int)count - 1);
   lv_obj_t *halDb_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(halDb_text, &lv_font_montserrat_14, LV_PART_MAIN);
-  lv_label_set_text(halDb_text, halSzoveg.c_str());
+  lv_label_set_text(halDb_text, fishText.c_str());
   lv_obj_align(halDb_text, LV_ALIGN_TOP_MID, 0, 220);
 }
 
 //////////////////// Exit Button ////////////////////////////
+/*A kilépés gomb globálisan létrehozott gomb,
+így nem kell minden funkcióban megírni csak, a függvényt kell meghívni.*/
 lv_obj_t *createExitButton() {
   lv_obj_t *exit_btn = lv_obj_create(lv_screen_active());
   lv_obj_clear_flag(exit_btn, LV_OBJ_FLAG_SCROLLABLE);
@@ -431,7 +443,7 @@ static void update_receiver_stopper_cb(lv_timer_t *t) {
     elozo_gombAllapot_receiver = jelenlegiGombAllapot;
   }
 
-  // JAVÍTVA: Csak akkor fut, ha van kapcsolat ÉS a gomb aktív
+  //Csak akkor fut, ha van kapcsolat és a gomb aktív
   if (adoKapcsolva && gombAllapot) {
     elapsed_receiver_ms += 1000;
     uint32_t sec = elapsed_receiver_ms / 1000;
@@ -462,8 +474,9 @@ void go_receiverStopper(void) {
   }
   previousConnectionState = isTransmitterConnected;
 
+  //A stopper létrehozása
   lbl_time_receiver = lv_label_create(lv_screen_active());
-  lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN);
+  lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN); //A stopper számainak méretezése
   char buf_init[16];
   uint32_t sec_init = elapsed_receiver_ms / 1000;
   uint32_t min_init = sec_init / 60;
@@ -475,7 +488,7 @@ void go_receiverStopper(void) {
   if (!shared_wifi_status_timer) {
     shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
   }
-
+  // Nullázó gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 100, 120);
   lv_obj_set_size(btn_reset, 120, 40);
@@ -489,6 +502,7 @@ void go_receiverStopper(void) {
     },
     LV_EVENT_CLICKED, NULL);
 
+  //Hal számláló gomb
   lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_fishCount, 100, 180);
   lv_obj_set_size(btn_fishCount, 120, 40);
@@ -516,7 +530,7 @@ static bool prev_receiver_timer_active = false;
 
 static void update_receiver_timer_cb(lv_timer_t *) {
   bool currentActive = (adoKapcsolva && gombAllapot && receiver_timer_sec > 0);
-  
+
   // Állapotváltozás detektálása
   if (currentActive && !prev_receiver_timer_active) {
     // Inaktívról aktívra -> Visszaállítás a KEZDETI ÉRTÉKRE (csak indításkor!)
@@ -524,7 +538,7 @@ static void update_receiver_timer_cb(lv_timer_t *) {
     Serial.print("Receiver Timer: START - Visszaállítva ");
     Serial.print(receiver_timer_sec);
     Serial.println(" mp-re");
-    
+
     // Kijelző frissítése az új értékkel
     uint32_t sec = receiver_timer_sec % 60;
     uint32_t min = (receiver_timer_sec / 60) % 60;
@@ -539,10 +553,12 @@ static void update_receiver_timer_cb(lv_timer_t *) {
     Serial.println(" mp-nél");
     // NEM állítjuk vissza az értéket, megmarad ahol megállt!
   }
-  
+
   prev_receiver_timer_active = currentActive;
-  
-  // Csak akkor számol lefelé, ha aktív
+
+  /* Csak akkor számol lefelé, ha aktív állapotban van.
+    Az előzőleg beállított értékről indul.
+   */
   if (currentActive) {
     receiver_timer_sec--;
     uint32_t sec = receiver_timer_sec % 60;
@@ -584,7 +600,7 @@ void go_receiverTimer(void) {
   if (!shared_wifi_status_timer) {
     shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
   }
-
+   //Nullázó gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 100, 120);
   lv_obj_set_size(btn_reset, 120, 40);
@@ -599,7 +615,7 @@ void go_receiverTimer(void) {
       Serial.println("Receiver Timer: Reset");
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Érték növelés 1 percenként
   lv_obj_t *btn_plus = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_plus, 20, 120);
   lv_obj_set_size(btn_plus, 60, 40);
@@ -618,7 +634,7 @@ void go_receiverTimer(void) {
       lv_label_set_text(lbl_time_receiver_timer, buf);
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Érték csökkentés 1 percenként, ha van beállított érték.
   lv_obj_t *btn_minus = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_minus, 240, 120);
   lv_obj_set_size(btn_minus, 60, 40);
@@ -639,7 +655,7 @@ void go_receiverTimer(void) {
       lv_label_set_text(lbl_time_receiver_timer, buf);
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Hal számláló gomb
   lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_fishCount, 100, 180);
   lv_obj_set_size(btn_fishCount, 120, 40);
@@ -658,7 +674,7 @@ void go_receiverTimer(void) {
   // Állapot inicializálása
   saved_receiver_timer_sec = receiver_timer_sec;
   prev_receiver_timer_active = false;
-  
+
   receiver_timer = lv_timer_create(update_receiver_timer_cb, 1000, NULL);
 }
 //////////////////// Stopper ////////////////////////////
@@ -677,7 +693,7 @@ static void update_stopper_cb(lv_timer_t *t) {
 
 void go_stopper(void) {
   lv_obj_t *exit_button = createExitButton();
-
+  // Stopper létrehozása
   lbl_time_stopper = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_stopper, &lv_font_montserrat_36, LV_PART_MAIN);
   lv_label_set_text(lbl_time_stopper, "00:00:00");
@@ -685,6 +701,7 @@ void go_stopper(void) {
   elapsed_ms = 0;
   lv_obj_align(lbl_time_stopper, LV_ALIGN_TOP_MID, 0, 30);
 
+  //A stopper indítása és leállítása gomb
   lv_obj_t *btn_start_stop = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_start_stop, 20, 120);
   lv_obj_set_size(btn_start_stop, 120, 40);
@@ -700,7 +717,7 @@ void go_stopper(void) {
       lv_label_set_text(label, running ? "Stop" : "Start");
     },
     LV_EVENT_CLICKED, nullptr);
-
+  //Nullázás gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 180, 120);
   lv_obj_set_size(btn_reset, 120, 40);
@@ -714,7 +731,7 @@ void go_stopper(void) {
       lv_label_set_text(lbl_time_stopper, "00:00:00");
     },
     LV_EVENT_CLICKED, nullptr);
-
+  //Hal számláló gomb.
   lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_fishCount, 100, 180);
   lv_obj_set_size(btn_fishCount, 120, 40);
@@ -748,14 +765,14 @@ static void update_timer_cb(lv_timer_t *) {
 
 void go_timer(void) {
   lv_obj_t *exit_button = createExitButton();
-
+  //Időzítő létrehozása
   lbl_time_timer = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_timer, &lv_font_montserrat_36, LV_PART_MAIN);
   timer_running = false;
   timer_duration_sec = 0;
   lv_label_set_text(lbl_time_timer, "00:00:00");
   lv_obj_align(lbl_time_timer, LV_ALIGN_TOP_MID, 0, 30);
-
+  //Az időzitő indítása és leállítása gomb
   lv_obj_t *btn_start_stop = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_start_stop, 20, 80);
   lv_obj_set_size(btn_start_stop, 120, 40);
@@ -770,7 +787,7 @@ void go_timer(void) {
       lv_label_set_text(label, timer_running ? "Stop" : "Start");
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Nullázás gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 180, 80);
   lv_obj_set_size(btn_reset, 120, 40);
@@ -784,7 +801,7 @@ void go_timer(void) {
       lv_label_set_text(lbl_time_timer, "00:00:00");
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Érték növelés 1 percenként
   lv_obj_t *btn_plus = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_plus, 20, 130);
   lv_obj_set_size(btn_plus, 120, 40);
@@ -802,7 +819,7 @@ void go_timer(void) {
       lv_label_set_text(lbl_time_timer, buf);
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Érték növelés 1 percenként, ha van beállított érték
   lv_obj_t *btn_minus = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_minus, 180, 130);
   lv_obj_set_size(btn_minus, 120, 40);
@@ -820,7 +837,7 @@ void go_timer(void) {
       lv_label_set_text(lbl_time_timer, buf);
     },
     LV_EVENT_CLICKED, NULL);
-
+  //Hal számláló gomb
   lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_fishCount, 100, 180);
   lv_obj_set_size(btn_fishCount, 120, 40);
@@ -840,7 +857,7 @@ void go_timer(void) {
 }
 
 void loop() {
-  server.handleClient();
+  server.handleClient(); //Szerver nditása
 
   // Timeout ellenőrzés
   if (adoKapcsolva && (millis() - utolsoUzenet > TIMEOUT)) {
@@ -848,7 +865,7 @@ void loop() {
     Serial.println("Adó kapcsolat megszakadt (timeout)");
   }
 
-  lv_task_handler();
-  lv_tick_inc(5);
-  delay(5);
+  lv_task_handler();//Az LVGL könyvtár futtatása
+  lv_tick_inc(5);// A képernyő váltás késleltetése.
+  delay(5); //Az új képernyő megjelenések késleltetése a újra rajzolás segítése miatt.
 }
