@@ -180,6 +180,10 @@ static bool timer_running = false;  // időzítő
 static bool previousConnectionState = false;
 static bool elozo_gombAllapot_receiver = false;
 
+//Betöltő képernyő
+LV_IMG_DECLARE(emberes_jpg); // Kép betöltése
+lv_obj_t *loading_label;
+lv_obj_t *bg_image;
 
 //////////////////// Végpontok létrehozása ////////////////////////////
 void handleRoot() {
@@ -207,7 +211,56 @@ void handlePing() {
     server.send(400, "text/plain", "Hibás kérés!");
   }
 }
+//////////////////// Loading page ////////////////////////////
+void loading_animation(lv_timer_t *timer) {
+  static uint8_t dots = 0;
+  dots++;
 
+  String text = "Fishing Timer";
+  for (int i = 0; i < dots && i < 5; i++) {
+    text += ".";
+  }
+
+  lv_label_set_text(loading_label, text.c_str());
+
+  // 5 pont után (5 x 500ms = 2.5 másodperc) töröljük mindent
+  if (dots >= 5) {
+    lv_timer_del(timer);
+
+    // 500ms késleltetés után töröljük a képet és szöveget
+    lv_timer_create([](lv_timer_t *t) -> void {
+      lv_obj_del(bg_image);
+      lv_obj_del(loading_label);
+      main_screen();  //A főképernyő indítása
+      lv_timer_del(t);
+    },
+                    500, NULL);
+  }
+}
+
+void show_loading_text(lv_timer_t *timer) {
+  // Loading szöveg megjelenítése
+  loading_label = lv_label_create(lv_scr_act());
+  lv_label_set_text(loading_label, "Fishing Timer");
+  lv_obj_align(loading_label, LV_ALIGN_CENTER, 0, 0);
+
+  // Szöveg stílus
+  lv_obj_set_style_text_color(loading_label, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_text_font(loading_label, &lv_font_montserrat_18, 0);
+
+  // Opcionális: sötét háttér a szöveg mögé
+  lv_obj_set_style_bg_color(loading_label, lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_opa(loading_label, LV_OPA_50, 0);
+  lv_obj_set_style_pad_all(loading_label, 10, 0);
+  lv_obj_set_style_radius(loading_label, 5, 0);
+
+  // Pont animáció indítása
+  lv_timer_create(loading_animation, 800, NULL);
+
+  lv_timer_del(timer);
+}
+
+//////////////////// Settings ////////////////////////////
 void setup() {
   Serial.begin(115200);
   WiFi.softAP(ssid, password);  // A vevő AccessPoint-ként beállítása
@@ -224,9 +277,16 @@ void setup() {
 
   //Kijelző és érintőpad inicializálása, A képernyő elforgatása.
   LVGL_CYD::begin(USB_LEFT);
+  // Emberes háttérkép
+  bg_image = lv_img_create(lv_scr_act());
+  lv_img_set_src(bg_image, &emberes_jpg);
+  lv_obj_align(bg_image, LV_ALIGN_CENTER, 0, 0);
+
+  // 1 másodperc múlva jelenjen meg a szöveg
+  lv_timer_create(show_loading_text, 1000, NULL);
   LVGL_CYD::led(255, 0, 0);  //A panelen lővő led bekapcsolása
 
-  main_screen();  //A főképernyő indítása
+  //main_screen();  //A főképernyő indítása
 }
 
 //////////////////// Timerek törlése ////////////////////////////
@@ -476,7 +536,7 @@ void go_receiverStopper(void) {
 
   //A stopper létrehozása
   lbl_time_receiver = lv_label_create(lv_screen_active());
-  lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN); //A stopper számainak méretezése
+  lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN);  //A stopper számainak méretezése
   char buf_init[16];
   uint32_t sec_init = elapsed_receiver_ms / 1000;
   uint32_t min_init = sec_init / 60;
@@ -600,7 +660,7 @@ void go_receiverTimer(void) {
   if (!shared_wifi_status_timer) {
     shared_wifi_status_timer = lv_timer_create(wifi_status_update_cb, 1000, NULL);
   }
-   //Nullázó gomb
+  //Nullázó gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_pos(btn_reset, 100, 120);
   lv_obj_set_size(btn_reset, 120, 40);
@@ -857,7 +917,7 @@ void go_timer(void) {
 }
 
 void loop() {
-  server.handleClient(); //Szerver nditása
+  server.handleClient();  //Szerver nditása
 
   // Timeout ellenőrzés
   if (adoKapcsolva && (millis() - utolsoUzenet > TIMEOUT)) {
@@ -865,7 +925,7 @@ void loop() {
     Serial.println("Adó kapcsolat megszakadt (timeout)");
   }
 
-  lv_task_handler();//Az LVGL könyvtár futtatása
-  lv_tick_inc(5);// A képernyő váltás késleltetése.
-  delay(5); //Az új képernyő megjelenések késleltetése a újra rajzolás segítése miatt.
+  lv_task_handler();  //Az LVGL könyvtár futtatása
+  //lv_tick_inc(5);// A képernyő váltás késleltetése.
+  delay(5);  //Az új képernyő megjelenések késleltetése a újra rajzolás segítése miatt.
 }
