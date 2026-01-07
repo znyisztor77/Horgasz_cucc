@@ -181,7 +181,7 @@ static bool previousConnectionState = false;
 static bool elozo_gombAllapot_receiver = false;
 
 //Betöltő képernyő
-LV_IMG_DECLARE(emberes_jpg); // Kép betöltése
+LV_IMG_DECLARE(emberes_jpg);  // Kép betöltése
 lv_obj_t *loading_label;
 lv_obj_t *bg_image;
 
@@ -390,9 +390,11 @@ static void wifi_status_update_cb(lv_timer_t *t) {
 //////////////////// Main Screen ////////////////////////////
 void main_screen() {
   lv_obj_clean(lv_screen_active());
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0);
 
   lv_obj_t *main_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(main_text, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(main_text, lv_color_hex(0xFFFFFF), 0);
   lv_label_set_text(main_text, "FishingTimer v1.0.");
   lv_obj_align(main_text, LV_ALIGN_TOP_LEFT, 0, 10);
 
@@ -416,8 +418,8 @@ void main_screen() {
   if (!main_screen_wifi_timer) {
     main_screen_wifi_timer = lv_timer_create(main_screen_wifi_update_cb, 1000, NULL);
   }
-  // Főképernyő vezérlőgombok létrehozása
-  auto create_nav_btn = [](const char *txt, lv_coord_t y_offset, lv_event_cb_t cb) {
+  // Főképernyő vezérlőgombok létrehozása elhelyezése
+  /*auto create_nav_btn = [](const char *txt, lv_coord_t y_offset, lv_event_cb_t cb) {
     lv_obj_t *btn = lv_button_create(lv_screen_active());
     lv_obj_set_size(btn, 300, 30);
     lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y_offset);
@@ -447,11 +449,69 @@ void main_screen() {
     lv_obj_clean(lv_screen_active());
     go_timer();
   });
+  */
+
+  //lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0);
+
+  // gombok új elrendezése
+
+  int btn_width = 140;
+  int btn_height = 60;
+  int gap = 15;
+
+  // Bal felső
+  lv_obj_t *btn1 = lv_button_create(lv_scr_act());
+  // Erdőzöld
+  lv_obj_set_style_bg_color(btn1, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_set_size(btn1, btn_width, btn_height);
+  lv_obj_align(btn1, LV_ALIGN_CENTER, -(btn_width / 2 + gap / 2), -(btn_height / 2 + gap / 2));
+  lv_obj_t *lbl1 = lv_label_create(btn1);
+  lv_label_set_text(lbl1, "Vevo Stopper");
+  lv_obj_center(lbl1);
+  lv_obj_add_event_cb(    btn1, [](lv_event_t *e) -> void {
+      //Serial.println("Vevo Stopper gomb megnyomva");
+      cleanup_all_screen_specific_timers();
+      lv_obj_clean(lv_screen_active());
+      go_receiverStopper();  // Meghívjuk az ablakot
+    },
+    LV_EVENT_CLICKED, NULL);
+
+  // Jobb felső
+  lv_obj_t *btn2 = lv_button_create(lv_scr_act());
+  // Erdőzöld
+  lv_obj_set_style_bg_color(btn2, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_set_size(btn2, btn_width, btn_height);
+  lv_obj_align(btn2, LV_ALIGN_CENTER, (btn_width / 2 + gap / 2), -(btn_height / 2 + gap / 2));
+  lv_obj_t *lbl2 = lv_label_create(btn2);
+  lv_label_set_text(lbl2, "Vevo Idozito");
+  lv_obj_center(lbl2);
+
+  // Bal alsó
+  lv_obj_t *btn3 = lv_button_create(lv_scr_act());
+  // Erdőzöld
+  lv_obj_set_style_bg_color(btn3, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_set_size(btn3, btn_width, btn_height);
+  lv_obj_align(btn3, LV_ALIGN_CENTER, -(btn_width / 2 + gap / 2), (btn_height / 2 + gap / 2));
+  lv_obj_t *lbl3 = lv_label_create(btn3);
+  lv_label_set_text(lbl3, "Stopper");
+  lv_obj_center(lbl3);
+
+  // Jobb alsó
+  lv_obj_t *btn4 = lv_button_create(lv_scr_act());
+  // Erdőzöld
+  lv_obj_set_style_bg_color(btn4, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_set_size(btn4, btn_width, btn_height);
+  lv_obj_align(btn4, LV_ALIGN_CENTER, (btn_width / 2 + gap / 2), (btn_height / 2 + gap / 2));
+  lv_obj_t *lbl4 = lv_label_create(btn4);
+  lv_label_set_text(lbl4, "Idozito");
+  lv_obj_center(lbl4);
+
 
   //A fogott halak számlálása gomb
   String fishText = "Fogott hal: " + String((int)count - 1);
   lv_obj_t *halDb_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(halDb_text, &lv_font_montserrat_14, LV_PART_MAIN);
+  lv_obj_set_style_text_color(halDb_text, lv_color_hex(0xFFFFFF), 0);
   lv_label_set_text(halDb_text, fishText.c_str());
   lv_obj_align(halDb_text, LV_ALIGN_TOP_MID, 0, 220);
 }
