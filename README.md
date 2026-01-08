@@ -1,6 +1,6 @@
 # Jeladó: 
 - 1db fizikális gomb, hosszan bekapcsolás, röviden nyomva tárázás.
-- LED indikátor, bekapcsolt.(On Kék, tárázás ok Zöld)
+- LED indikátor, bekapcsolt.(Piros: Nincs kapcsolat a vevővel, Kék:Kapcsolodva a vevőhöz, Zöld:Adatok küldése)
 - Bottartó ráhelyezése
 - Bekapcsolás után tárázás. (Tárázásra a vevő figyelmeztet)
 - A 0-tól való eltérés figyelése +-5g tűrés
@@ -15,5 +15,5 @@
 - Időzítő esetén, eltérés jel fogadásakor a beállított értéktől számol visszafelé, a nulla elérésekor a kijelző villog, vagy és csipogás hallatszik.
 - Stopper esetén eltérés jel fogadása(bot rá helyezése a tartóra) esetén a vevő számlálója indul.
 - Visszaszámllás jel esetén ( bot levétele a tartóról) a számláló megáll és az aktuális értéket mutatja, + a háttérben a valós idő tárolása ha valamelyik halszámláló gombot megnyomjuk).
-- Újabb eltérés jel esetén a számláló vagy újraindul, vagy a beállított értéktől számol visszafelé.
+- Újabb eltérés jel esetén a  a stopper számláló újraindul, az időzítő a  beállított értéktől számol visszafelé.
 - Lehessen a jeladótol függetlenül is használni a stopper, időzítő, számláló funkciókat.
