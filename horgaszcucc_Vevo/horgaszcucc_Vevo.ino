@@ -397,7 +397,7 @@ static void wifi_status_update_cb(lv_timer_t *t) {
 //////////////////// Main Screen ////////////////////////////
 void main_screen() {
   lv_obj_clean(lv_screen_active());
-  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0);
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0); //Háttérszín beállítása feketére.  Átállítás fehérre ki kell komentelni.
 
   lv_obj_t *main_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(main_text, &lv_font_montserrat_18, LV_PART_MAIN);
@@ -466,7 +466,7 @@ void main_screen() {
   int btn_height = 60;
   int gap = 15;
 
-  // Bal felső
+  // Open Receiver Stopper Screen Button
   lv_obj_t *btn1 = lv_button_create(lv_scr_act());
   // Erdőzöld
   lv_obj_set_style_bg_color(btn1, lv_color_hex(0x228B22), LV_PART_MAIN);
@@ -475,15 +475,14 @@ void main_screen() {
   lv_obj_t *lbl1 = lv_label_create(btn1);
   lv_label_set_text(lbl1, "Vevo Stopper");
   lv_obj_center(lbl1);
-  lv_obj_add_event_cb(    btn1, [](lv_event_t *e) -> void {
-      //Serial.println("Vevo Stopper gomb megnyomva");
+  lv_obj_add_event_cb(btn1, [](lv_event_t *e) -> void {
       cleanup_all_screen_specific_timers();
       lv_obj_clean(lv_screen_active());
       go_receiverStopper();  // Meghívjuk az ablakot
     },
     LV_EVENT_CLICKED, NULL);
 
-  // Jobb felső
+  // Open Receiver Timer Screen Button
   lv_obj_t *btn2 = lv_button_create(lv_scr_act());
   // Erdőzöld
   lv_obj_set_style_bg_color(btn2, lv_color_hex(0x228B22), LV_PART_MAIN);
@@ -492,8 +491,14 @@ void main_screen() {
   lv_obj_t *lbl2 = lv_label_create(btn2);
   lv_label_set_text(lbl2, "Vevo Idozito");
   lv_obj_center(lbl2);
+  lv_obj_add_event_cb(btn2, [](lv_event_t *e) -> void {
+      cleanup_all_screen_specific_timers();
+      lv_obj_clean(lv_screen_active());
+      go_receiverTimer();  // Meghívjuk az ablakot
+    },
+    LV_EVENT_CLICKED, NULL);
 
-  // Bal alsó
+  // Open Stopper Screen Button
   lv_obj_t *btn3 = lv_button_create(lv_scr_act());
   // Erdőzöld
   lv_obj_set_style_bg_color(btn3, lv_color_hex(0x228B22), LV_PART_MAIN);
@@ -502,8 +507,14 @@ void main_screen() {
   lv_obj_t *lbl3 = lv_label_create(btn3);
   lv_label_set_text(lbl3, "Stopper");
   lv_obj_center(lbl3);
+  lv_obj_add_event_cb(btn3, [](lv_event_t *e) -> void {
+      cleanup_all_screen_specific_timers();
+      lv_obj_clean(lv_screen_active());
+      go_stopper();  // Meghívjuk az ablakot
+    },
+    LV_EVENT_CLICKED, NULL);
 
-  // Jobb alsó
+  // Open Timer Screen Button
   lv_obj_t *btn4 = lv_button_create(lv_scr_act());
   // Erdőzöld
   lv_obj_set_style_bg_color(btn4, lv_color_hex(0x228B22), LV_PART_MAIN);
@@ -512,6 +523,12 @@ void main_screen() {
   lv_obj_t *lbl4 = lv_label_create(btn4);
   lv_label_set_text(lbl4, "Idozito");
   lv_obj_center(lbl4);
+  lv_obj_add_event_cb(btn4, [](lv_event_t *e) -> void {
+      cleanup_all_screen_specific_timers();
+      lv_obj_clean(lv_screen_active());
+      go_timer();  // Meghívjuk az ablakot
+    },
+    LV_EVENT_CLICKED, NULL);
 
 
   //A fogott halak számlálása gomb
@@ -528,6 +545,7 @@ void main_screen() {
 így nem kell minden funkcióban megírni csak, a függvényt kell meghívni.*/
 lv_obj_t *createExitButton() {
   lv_obj_t *exit_btn = lv_obj_create(lv_screen_active());
+  lv_obj_set_style_text_color(exit_btn, lv_color_hex(0xFFFFFF), 0); //Fehér kilépés gomb
   lv_obj_clear_flag(exit_btn, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(exit_btn, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_bg_opa(exit_btn, LV_OPA_TRANSP, LV_PART_MAIN);
@@ -584,6 +602,7 @@ static void update_receiver_stopper_cb(lv_timer_t *t) {
 }
 
 void go_receiverStopper(void) {
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0); //Háttérszín beállítása feketére.  Átállítás fehérre ki kell komentelni.
   lv_obj_t *exit_button = createExitButton();
 
   lbl_wifi_state = lv_label_create(lv_screen_active());
@@ -594,16 +613,18 @@ void go_receiverStopper(void) {
   updateWiFiConnectionState();
   if (isTransmitterConnected) {
     lv_label_set_text(lbl_wifi_state, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN);
+    lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0x00ff00), LV_PART_MAIN); // Wifi jel zöld színnel
   } else {
-    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!");
-    lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);
+    lv_label_set_text(lbl_wifi_state, "Nincs kapcsolat az adoval!"); // Nincs kapcsolat piros színnel.
+    //lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xff0000), LV_PART_MAIN);//Piros szín
+    lv_obj_set_style_text_color(lbl_wifi_state, lv_color_hex(0xffffff), LV_PART_MAIN);//Fehér szín szín
   }
   previousConnectionState = isTransmitterConnected;
 
   //A stopper létrehozása
   lbl_time_receiver = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(lbl_time_receiver, &lv_font_montserrat_36, LV_PART_MAIN);  //A stopper számainak méretezése
+  lv_obj_set_style_text_color(lbl_time_receiver, lv_color_hex(0xFFFFFF), 0); // Fehér szín beállítása a stopperhez.
   char buf_init[16];
   uint32_t sec_init = elapsed_receiver_ms / 1000;
   uint32_t min_init = sec_init / 60;
@@ -617,6 +638,7 @@ void go_receiverStopper(void) {
   }
   // Nullázó gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
+  lv_obj_set_style_bg_color(btn_reset, lv_color_hex(0x228B22), LV_PART_MAIN);
   lv_obj_set_pos(btn_reset, 100, 120);
   lv_obj_set_size(btn_reset, 120, 40);
   lv_obj_t *lbl_reset = lv_label_create(btn_reset);
@@ -631,6 +653,7 @@ void go_receiverStopper(void) {
 
   //Hal számláló gomb
   lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
+  lv_obj_set_style_bg_color(btn_fishCount, lv_color_hex(0x228B22), LV_PART_MAIN);
   lv_obj_set_pos(btn_fishCount, 100, 180);
   lv_obj_set_size(btn_fishCount, 120, 40);
   lv_obj_t *label_fish = lv_label_create(btn_fishCount);
@@ -698,6 +721,7 @@ static void update_receiver_timer_cb(lv_timer_t *) {
 }
 
 void go_receiverTimer(void) {
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0); //Háttérszín beállítása feketére.  Átállítás fehérre ki kell komentelni.
   lv_obj_t *exit_button = createExitButton();
 
   lbl_wifi_state = lv_label_create(lv_screen_active());
@@ -819,6 +843,7 @@ static void update_stopper_cb(lv_timer_t *t) {
 }
 
 void go_stopper(void) {
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0); //Háttérszín beállítása feketére.  Átállítás fehérre ki kell komentelni.
   lv_obj_t *exit_button = createExitButton();
   // Stopper létrehozása
   lbl_time_stopper = lv_label_create(lv_screen_active());
@@ -891,6 +916,7 @@ static void update_timer_cb(lv_timer_t *) {
 }
 
 void go_timer(void) {
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0); //Háttérszín beállítása feketére.  Átállítás fehérre ki kell komentelni.
   lv_obj_t *exit_button = createExitButton();
   //Időzítő létrehozása
   lbl_time_timer = lv_label_create(lv_screen_active());
