@@ -1,10 +1,10 @@
 # Jeladó: 
 - 1db fizikális gomb, hosszan bekapcsolás, röviden nyomva tárázás.
 - LED indikátor, bekapcsolt.(Piros: Nincs kapcsolat a vevővel, Kék:Kapcsolodva a vevőhöz, Zöld:Adatok küldése)
-- Bottartó ráhelyezése
 - Bekapcsolás után tárázás. (Tárázásra a vevő figyelmeztet)
+- Bottartó ráhelyezése
 - A 0-tól való eltérés figyelése +-5g tűrés
-- Eltérés (bot rá helyezése) >= 5g esetén jeladás, vagy folyamatos jeladás és az eltérést a vevő figyeli. Aksi szempontjából az első változat a jobb.
+- Eltérés (bot rá helyezése) >= 5g esetén jeladás, vagy folyamatos jeladás és az eltérést a vevő figyeli.
 - Jeladáskor esetleg az akku töltöttségi szint jelének küldése.
 - Viszaállás bot levétele, újabb jeladás 
 
