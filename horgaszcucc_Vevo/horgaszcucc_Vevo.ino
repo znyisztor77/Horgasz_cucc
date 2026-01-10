@@ -1,10 +1,12 @@
 //lv_conf.h
 //Configuration file for v9.2.2
 //ESP32 Dev Modul
+//https://github.com/tinkering4fun/LVGL_CYD_Framework/tree/redesign
 
 #include <WebServer.h>
 #include <WiFi.h>
-#include <LVGL_CYD.h>  // https://github.com/ropg/LVGL_CYD
+#include <LVGL_CYD.h>  // https://github.com/ropg/LVGL_CYD  origi
+//https://github.com/tinkering4fun/LVGL_CYD_Framework/tree/redesign
 #include <DS3231.h>
 #include <Wire.h>
 
@@ -14,6 +16,10 @@ WebServer server(80);
 //RTC pins
 //#define rtc_sda 21
 //#define rtc_scl 22
+
+#define SCREEN_ORIENTATION LVGL_CYD::usbLeft
+LVGL_CYD cyd = LVGL_CYD();
+
 
 // Kapcsolat állapot
 bool adoKapcsolva = false;
@@ -156,6 +162,62 @@ const char webpage[] PROGMEM = R"=====(
 </html>
 )=====";
 
+
+/*const char webpage[] PROGMEM = R"=====(
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESP32 Monitor</title>
+<style>
+body{font-family:Arial;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#667eea}
+.container{background:#fff;padding:30px;border-radius:15px;box-shadow:0 5px 20px rgba(0,0,0,.2);text-align:center;min-width:300px}
+.indicator{width:15px;height:15px;border-radius:50%;float:right;margin:5px}
+.connected{background:#4CAF50}
+.disconnected{background:#f44336}
+h1{color:#333;font-size:20px}
+.status{font-size:18px;padding:15px;border-radius:8px;margin:15px 0}
+.status.connected{background:#e8f5e9;color:#2e7d32}
+.status.disconnected{background:#ffebee;color:#c62828}
+.btn-status{font-size:24px;padding:20px;border-radius:10px;margin:15px 0;border:2px solid}
+.btn-status.pressed{background:#fff3e0;color:#e65100;border-color:#e65100}
+.btn-status.released{background:#f5f5f5;color:#757575;border-color:#bdbdbd}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="indicator" id="i"></div>
+<h1>ESP32 Monitor</h1>
+<div class="status" id="s">Várakozás...</div>
+<div class="btn-status" id="b">-</div>
+</div>
+<script>
+function u(){
+fetch('/status').then(r=>r.json()).then(d=>{
+let i=document.getElementById('i'),s=document.getElementById('s'),b=document.getElementById('b');
+if(d.connected){
+i.className='indicator connected';
+s.className='status connected';
+s.textContent='Kapcsolódva';
+b.className='btn-status '+(d.buttonPressed?'pressed':'released');
+b.textContent=d.buttonPressed?'Gomb benyomva':'Gomb elengedve';
+}else{
+i.className='indicator disconnected';
+s.className='status disconnected';
+s.textContent='Kapcsolat megszakadt';
+b.className='btn-status released';
+b.textContent='-';
+}
+}).catch(e=>console.error(e));
+}
+setInterval(u,100);
+u();
+</script>
+</body>
+</html>
+)=====";*/
+
 bool isTransmitterConnected = false;
 static uint32_t count = 1;
 
@@ -283,7 +345,8 @@ void setup() {
   Serial.println("Nyisd meg böngészőben: http://" + IP.toString());
 
   //Kijelző és érintőpad inicializálása, A képernyő elforgatása.
-  LVGL_CYD::begin(USB_LEFT);
+  //LVGL_CYD::begin(USB_LEFT); 320x240
+  cyd.begin(SCREEN_ORIENTATION); //480X320
   // Emberes háttérkép
   bg_image = lv_img_create(lv_scr_act());
   lv_img_set_src(bg_image, &emberes_jpg);
@@ -291,7 +354,8 @@ void setup() {
 
   // 1 másodperc múlva jelenjen meg a szöveg
   lv_timer_create(show_loading_text, 1000, NULL);
-  LVGL_CYD::led(255, 0, 0);  //A panelen lővő led bekapcsolása
+  //LVGL_CYD::led(255, 0, 0);  //A panelen lővő led bekapcsolása 320x240
+  cyd.led(255, 0, 0);
 
   //main_screen();  //A főképernyő indítása
 }
@@ -350,9 +414,11 @@ Ezt a függvényt használja az összes kijelző az állapot ellenörzésére
 void updateWiFiConnectionState() {
   isTransmitterConnected = adoKapcsolva;
   if (isTransmitterConnected) {
-    LVGL_CYD::led(0, 255, 0);  // Zöld LED
+    //LVGL_CYD::led(0, 255, 0);  // Zöld LED 320X240
+    cyd.led(0, 255, 0); //480x320
   } else {
-    LVGL_CYD::led(0, 0, 255);  // Kék LED
+    //LVGL_CYD::led(0, 0, 255);  // Kék LED 320X240
+    cyd.led(0, 255, 0); //480X320
   }
 }
 
