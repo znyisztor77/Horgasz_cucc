@@ -21,7 +21,7 @@
 # "DRAM segment data does not fit."
 Ha nem fér bele a DRAM-ba fordításkor akkor túl nagy a rajzolás Buffer mérete
 
-// Draw buffer for LVGL / TFT_eSPI display
-//#define DRAW_BUF_SIZE (LVGL_CYD_TFT_WIDTH * LVGL_CYD_TFT_HEIGHT / 10 * (LV_COLOR_DEPTH / 8)) Ez az alap beállítás.
-#define DRAW_BUF_SIZE (LVGL_CYD_TFT_WIDTH * LVGL_CYD_TFT_HEIGHT / 15) // Ezzel a beállítással elindul, csak kicsit lassabb a renderelés. Alapból 10-es osztóval szépen megy csak akkor PSRAM kell hogy legyen a hardverben.
-uint32_t draw_buf[DRAW_BUF_SIZE / 4];
+- // Draw buffer for LVGL / TFT_eSPI display
+- //#define DRAW_BUF_SIZE (LVGL_CYD_TFT_WIDTH * LVGL_CYD_TFT_HEIGHT / 10 * (LV_COLOR_DEPTH / 8)) Ez az alap beállítás.
+- #define DRAW_BUF_SIZE (LVGL_CYD_TFT_WIDTH * LVGL_CYD_TFT_HEIGHT / 15) // Ezzel a beállítással elindul, csak kicsit lassabb a renderelés. Alapból 10-es osztóval szépen megy csak akkor PSRAM kell hogy legyen a hardverben.
+- uint32_t draw_buf[DRAW_BUF_SIZE / 4];
