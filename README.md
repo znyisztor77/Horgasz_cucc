@@ -27,3 +27,14 @@
 #define DRAW_BUF_SIZE (LVGL_CYD_TFT_WIDTH * LVGL_CYD_TFT_HEIGHT / 15) // Ezzel a beállítással elindul, csak kicsit lassabb a renderelés. Alapból 10-es osztóval szépen megy csak akkor PSRAM kell hogy legyen a hardverben.
 uint32_t draw_buf[DRAW_BUF_SIZE / 4];
 ```
+# Könyvtárak:
+- A kijelző beindításához egy egyszerűsitett LVGL_CYD könyvtár van használva.
+- A könyvtár tartalmazza a kijelzőhöz és az érintőhöz szükséges meghajtó drivereket, és beállításokat.
+- A könyvtárban implementálva van az [LVGL keretrendszerhez] https://docs.lvgl.io/9.2/ szükséges alap beállítások.
+- https://github.com/ropg/LVGL_CYD Ezzel a könyvtárral a 320X240 kijelzőt be lehet indítani, de csak a 320X240 kijelzőt.
+- 2.4inch_ESP32-2432S024C capacitiv kijelző CT820 érintő kijelzövel működik
+- A 2.4inch kijelzőhöz megfelelő a fent emlitett könyvtár.
+
+- A 3.5inch_ESP32-3248S035C kijelzőnek GT911 érintő drivere van és ST7789 tipusú kijelzővel van szerelve
+- https://github.com/tinkering4fun/LVGL_CYD_Framework/tree/redesign Ezzel a könyvtárral a 480X320 kijelzőt lehet meghajtani.
+- Ez a könyvtár
