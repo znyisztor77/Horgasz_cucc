@@ -30,7 +30,7 @@ uint32_t draw_buf[DRAW_BUF_SIZE / 4];
 # Könyvtárak:
 - A kijelző beindításához egy egyszerűsitett LVGL_CYD könyvtár van használva.
 - A könyvtár tartalmazza a kijelzőhöz és az érintőhöz szükséges meghajtó drivereket, és beállításokat.
-- A könyvtárban implementálva van az [LVGL keretrendszerhez]https://docs.lvgl.io/9.2/ szükséges alap beállítások.
+- A könyvtárban implementálva van az [LVGL](https://docs.lvgl.io/9.2/) keretrendszerhez szükséges alap beállítások.
 - https://github.com/ropg/LVGL_CYD Ezzel a könyvtárral a 320X240 kijelzőt be lehet indítani, de csak a 320X240 kijelzőt.
 - 2.4inch_ESP32-2432S024C capacitiv kijelző CT820 érintő kijelzövel működik
 - A 2.4inch kijelzőhöz megfelelő a fent emlitett könyvtár.
