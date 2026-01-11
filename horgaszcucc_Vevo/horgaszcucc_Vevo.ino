@@ -162,62 +162,6 @@ const char webpage[] PROGMEM = R"=====(
 </html>
 )=====";
 
-
-/*const char webpage[] PROGMEM = R"=====(
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ESP32 Monitor</title>
-<style>
-body{font-family:Arial;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#667eea}
-.container{background:#fff;padding:30px;border-radius:15px;box-shadow:0 5px 20px rgba(0,0,0,.2);text-align:center;min-width:300px}
-.indicator{width:15px;height:15px;border-radius:50%;float:right;margin:5px}
-.connected{background:#4CAF50}
-.disconnected{background:#f44336}
-h1{color:#333;font-size:20px}
-.status{font-size:18px;padding:15px;border-radius:8px;margin:15px 0}
-.status.connected{background:#e8f5e9;color:#2e7d32}
-.status.disconnected{background:#ffebee;color:#c62828}
-.btn-status{font-size:24px;padding:20px;border-radius:10px;margin:15px 0;border:2px solid}
-.btn-status.pressed{background:#fff3e0;color:#e65100;border-color:#e65100}
-.btn-status.released{background:#f5f5f5;color:#757575;border-color:#bdbdbd}
-</style>
-</head>
-<body>
-<div class="container">
-<div class="indicator" id="i"></div>
-<h1>ESP32 Monitor</h1>
-<div class="status" id="s">Várakozás...</div>
-<div class="btn-status" id="b">-</div>
-</div>
-<script>
-function u(){
-fetch('/status').then(r=>r.json()).then(d=>{
-let i=document.getElementById('i'),s=document.getElementById('s'),b=document.getElementById('b');
-if(d.connected){
-i.className='indicator connected';
-s.className='status connected';
-s.textContent='Kapcsolódva';
-b.className='btn-status '+(d.buttonPressed?'pressed':'released');
-b.textContent=d.buttonPressed?'Gomb benyomva':'Gomb elengedve';
-}else{
-i.className='indicator disconnected';
-s.className='status disconnected';
-s.textContent='Kapcsolat megszakadt';
-b.className='btn-status released';
-b.textContent='-';
-}
-}).catch(e=>console.error(e));
-}
-setInterval(u,100);
-u();
-</script>
-</body>
-</html>
-)=====";*/
-
 bool isTransmitterConnected = false;
 static uint32_t count = 1;
 
@@ -248,7 +192,7 @@ static bool previousConnectionState = false;
 static bool elozo_gombAllapot_receiver = false;
 
 //Betöltő képernyő
-LV_IMG_DECLARE(emberes_jpg);  // Kép betöltése
+LV_IMG_DECLARE(emberes_2);  // Kép betöltése
 lv_obj_t *loading_label;
 lv_obj_t *bg_image;
 
@@ -349,7 +293,7 @@ void setup() {
   cyd.begin(SCREEN_ORIENTATION); //480X320
   // Emberes háttérkép
   bg_image = lv_img_create(lv_scr_act());
-  lv_img_set_src(bg_image, &emberes_jpg);
+  lv_img_set_src(bg_image, &emberes_2);
   lv_obj_align(bg_image, LV_ALIGN_CENTER, 0, 0);
 
   // 1 másodperc múlva jelenjen meg a szöveg
