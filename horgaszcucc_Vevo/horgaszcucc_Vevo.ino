@@ -714,8 +714,9 @@ void go_receiverStopper(void) {
   // Nullázó gomb
   lv_obj_t *btn_reset = lv_button_create(lv_screen_active());
   lv_obj_set_style_bg_color(btn_reset, lv_color_hex(0x228B22), LV_PART_MAIN);
-  lv_obj_set_pos(btn_reset, 100, 120);
-  lv_obj_set_size(btn_reset, 120, 40);
+  //lv_obj_set_pos(btn_reset, 100, 120);
+  lv_obj_set_size(btn_reset, 150, 50);
+  lv_obj_align_to(btn_reset, lbl_time_receiver, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
   lv_obj_t *lbl_reset = lv_label_create(btn_reset);
   lv_label_set_text(lbl_reset, "Reset");
   lv_obj_center(lbl_reset);
@@ -729,8 +730,8 @@ void go_receiverStopper(void) {
   //Hal számláló gomb
   lv_obj_t *btn_fishCount = lv_button_create(lv_screen_active());
   lv_obj_set_style_bg_color(btn_fishCount, lv_color_hex(0x228B22), LV_PART_MAIN);
-  lv_obj_set_pos(btn_fishCount, 100, 180);
-  lv_obj_set_size(btn_fishCount, 120, 40);
+  lv_obj_set_pos(btn_fishCount, 165, 200);
+  lv_obj_set_size(btn_fishCount, 150, 50);
   lv_obj_t *label_fish = lv_label_create(btn_fishCount);
   lv_label_set_text(label_fish, "Hal ?");
   lv_obj_center(label_fish);
@@ -742,6 +743,37 @@ void go_receiverStopper(void) {
       count++;
     },
     LV_EVENT_CLICKED, label_fish);
+
+
+  //Hal számláló Plusz
+  lv_obj_t *btn_fishCount_plus = lv_button_create(lv_screen_active());
+  lv_obj_set_style_bg_color(btn_fishCount_plus, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_align(btn_fishCount_plus, LV_ALIGN_BOTTOM_LEFT, 10, -20);
+  lv_obj_set_size(btn_fishCount_plus, 100, 50);
+  lv_obj_t *label_fish_plus = lv_label_create(btn_fishCount_plus);
+  lv_label_set_text(label_fish_plus, "+");
+  lv_obj_center(label_fish_plus); 
+
+  lv_obj_t *down_symbol = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(down_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(down_symbol, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(down_symbol, LV_SYMBOL_DOWNLOAD);
+  lv_obj_align_to(down_symbol, btn_fishCount_plus ,LV_ALIGN_OUT_TOP_LEFT, 40, -10);
+
+  //Hal számláló Minusz
+  lv_obj_t *btn_fishCount_minus = lv_button_create(lv_screen_active());
+  lv_obj_set_style_bg_color(btn_fishCount_minus, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_align(btn_fishCount_minus, LV_ALIGN_BOTTOM_RIGHT, -10, -20);
+  lv_obj_set_size(btn_fishCount_minus, 100, 50);
+  lv_obj_t *label_fish_minus = lv_label_create(btn_fishCount_minus);
+  lv_label_set_text(label_fish_minus, "-");
+  lv_obj_center(label_fish_minus); 
+
+  lv_obj_t *up_symbol = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(up_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(up_symbol, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(up_symbol, LV_SYMBOL_UPLOAD);
+  lv_obj_align_to(up_symbol, btn_fishCount_minus ,LV_ALIGN_OUT_TOP_RIGHT, -40, -10);  
 
   // Állapot inicializálása
   elozo_gombAllapot_receiver = gombAllapot;
