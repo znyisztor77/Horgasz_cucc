@@ -164,7 +164,9 @@ const char webpage[] PROGMEM = R"=====(
 )=====";
 
 bool isTransmitterConnected = false;
-static uint32_t count = 1;
+//Halszámláló változó
+static uint32_t count1 = 1;
+static uint32_t count2 = 1;
 
 // Timer pointerek
 static lv_timer_t *main_screen_wifi_timer = nullptr;  // Main screen WiFi timer
@@ -272,7 +274,7 @@ void show_loading_text(lv_timer_t *timer) {
   lv_timer_del(timer);
 }
 
-//////////////////// Settings ////////////////////////////
+//////////////////// Setup ////////////////////////////
 void setup() {
   Serial.begin(115200);
 
@@ -571,13 +573,21 @@ void main_screen() {
     LV_EVENT_CLICKED, NULL);
 
 
-  //A fogott halak számlálása gomb
-  String fishText = "Fogott hal: " + String((int)count - 1);
-  lv_obj_t *halDb_text = lv_label_create(lv_screen_active());
-  lv_obj_set_style_text_font(halDb_text, &lv_font_montserrat_18, LV_PART_MAIN);
-  lv_obj_set_style_text_color(halDb_text, lv_color_hex(0xFFFFFF), 0);
-  lv_label_set_text(halDb_text, fishText.c_str());
-  lv_obj_align(halDb_text, LV_ALIGN_TOP_MID, 0, 280);
+  // Szák 1 fogott halak
+  String fishText1 = " Szak 1:  " + String((int)count1 - 1) + "db hal.";
+  lv_obj_t *halDb_text1 = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(halDb_text1, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(halDb_text1, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(halDb_text1, fishText1.c_str());
+  lv_obj_align(halDb_text1, LV_ALIGN_TOP_LEFT, 0, 260);
+
+   // Szák 1 fogott halak
+  String fishText2 = " Szak 2:  " + String((int)count2 - 1) + "db hal.";
+  lv_obj_t *halDb_text2 = lv_label_create(lv_screen_active());
+  lv_obj_set_style_text_font(halDb_text2, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(halDb_text2, lv_color_hex(0xFFFFFF), 0);
+  lv_label_set_text(halDb_text2, fishText2.c_str());
+  lv_obj_align(halDb_text2, LV_ALIGN_TOP_LEFT, 0, 290);
 }
 
 //////////////////// Exit Button ////////////////////////////
@@ -733,19 +743,19 @@ void go_receiverStopper(void) {
   lv_obj_set_pos(btn_fishCount, 165, 200);
   lv_obj_set_size(btn_fishCount, 150, 50);
   lv_obj_t *label_fish = lv_label_create(btn_fishCount);
-  lv_label_set_text(label_fish, "Hal ?");
+  lv_label_set_text(label_fish, " Hal ");
   lv_obj_center(label_fish);
   lv_obj_add_event_cb(
     btn_fishCount,
     [](lv_event_t *e) {
       lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
-      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
-      count++;
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count1);
+      count1++;
     },
     LV_EVENT_CLICKED, label_fish);
 
 
-  //Hal számláló Plusz
+  //Hal számláló Szák 1
   lv_obj_t *btn_fishCount_plus = lv_button_create(lv_screen_active());
   lv_obj_set_style_bg_color(btn_fishCount_plus, lv_color_hex(0x228B22), LV_PART_MAIN);
   lv_obj_align(btn_fishCount_plus, LV_ALIGN_BOTTOM_LEFT, 10, -20);
@@ -753,27 +763,43 @@ void go_receiverStopper(void) {
   lv_obj_t *label_fish_plus = lv_label_create(btn_fishCount_plus);
   lv_label_set_text(label_fish_plus, "+");
   lv_obj_center(label_fish_plus); 
+  lv_obj_add_event_cb(
+    btn_fishCount_plus,
+    [](lv_event_t *e) {
+      lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count1);
+      count1++;
+    },
+    LV_EVENT_CLICKED, label_fish_plus);
 
   lv_obj_t *down_symbol = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(down_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_color(down_symbol, lv_color_hex(0xFFFFFF), 0);
-  lv_label_set_text(down_symbol, LV_SYMBOL_DOWNLOAD);
-  lv_obj_align_to(down_symbol, btn_fishCount_plus ,LV_ALIGN_OUT_TOP_LEFT, 40, -10);
+  lv_label_set_text(down_symbol, LV_SYMBOL_DOWNLOAD " Szak 1");
+  lv_obj_align_to(down_symbol, btn_fishCount_plus ,LV_ALIGN_OUT_TOP_LEFT, 10, -10);
 
-  //Hal számláló Minusz
+  //Hal számláló Szák 2
   lv_obj_t *btn_fishCount_minus = lv_button_create(lv_screen_active());
   lv_obj_set_style_bg_color(btn_fishCount_minus, lv_color_hex(0x228B22), LV_PART_MAIN);
   lv_obj_align(btn_fishCount_minus, LV_ALIGN_BOTTOM_RIGHT, -10, -20);
   lv_obj_set_size(btn_fishCount_minus, 100, 50);
   lv_obj_t *label_fish_minus = lv_label_create(btn_fishCount_minus);
-  lv_label_set_text(label_fish_minus, "-");
-  lv_obj_center(label_fish_minus); 
+  lv_label_set_text(label_fish_minus, "+");
+  lv_obj_center(label_fish_minus);
+  lv_obj_add_event_cb(
+    btn_fishCount_minus,
+    [](lv_event_t *e) {
+      lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count2);
+      count2++;
+    },
+    LV_EVENT_CLICKED, label_fish_minus); 
 
   lv_obj_t *up_symbol = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(up_symbol, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_color(up_symbol, lv_color_hex(0xFFFFFF), 0);
-  lv_label_set_text(up_symbol, LV_SYMBOL_UPLOAD);
-  lv_obj_align_to(up_symbol, btn_fishCount_minus ,LV_ALIGN_OUT_TOP_RIGHT, -40, -10);  
+  lv_label_set_text(up_symbol, LV_SYMBOL_DOWNLOAD " Szak 2");
+  lv_obj_align_to(up_symbol, btn_fishCount_minus ,LV_ALIGN_OUT_TOP_RIGHT, -10, -10);  
 
   // Állapot inicializálása
   elozo_gombAllapot_receiver = gombAllapot;
@@ -924,8 +950,8 @@ void go_receiverTimer(void) {
     btn_fishCount,
     [](lv_event_t *e) {
       lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
-      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
-      count++;
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count1);
+      count1++;
     },
     LV_EVENT_CLICKED, label_fish);
 
@@ -1001,8 +1027,8 @@ void go_stopper(void) {
     btn_fishCount,
     [](lv_event_t *e) {
       lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
-      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
-      count++;
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count1);
+      count1++;
     },
     LV_EVENT_CLICKED, label_fish);
 
@@ -1108,8 +1134,8 @@ void go_timer(void) {
     btn_fishCount,
     [](lv_event_t *e) {
       lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
-      lv_label_set_text_fmt(label, "%" LV_PRIu32, count);
-      count++;
+      lv_label_set_text_fmt(label, "%" LV_PRIu32, count1);
+      count1++;
     },
     LV_EVENT_CLICKED, label_fish);
 
