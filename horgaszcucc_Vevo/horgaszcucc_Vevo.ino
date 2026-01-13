@@ -199,6 +199,10 @@ LV_IMG_DECLARE(emberes_2);  // Kép betöltése
 lv_obj_t *loading_label;
 lv_obj_t *bg_image;
 
+static float kilo = 0.0; // Ebben tároljuk majd a mentett értéket
+static lv_obj_t * modal_base; // A felugró ablak alapja
+static lv_obj_t * halDb_text1;
+
 //////////////////// Végpontok létrehozása ////////////////////////////
 void handleRoot() {
   server.send(200, "text/html", webpage);
@@ -409,6 +413,7 @@ static void wifi_status_update_cb(lv_timer_t *t) {
 }
 
 //////////////////// Main Screen ////////////////////////////
+
 void main_screen() {
   lv_obj_clean(lv_screen_active());
   lv_obj_set_style_bg_color(lv_scr_act(), lv_color_hex(0x000000), 0);  //Háttérszín beállítása feketére.  Átállítás fehérre ki kell komentelni.
@@ -574,21 +579,46 @@ void main_screen() {
 
 
   // Szák 1 fogott halak
-  String fishText1 = " Szak 1:  " + String((int)count1 - 1) + "db hal.";
-  lv_obj_t *halDb_text1 = lv_label_create(lv_screen_active());
+  String fishText1 = " Szak 1:  " + String((int)count1 - 1) + "db hal.   " + String((float)kilo)+ "kg";
+  //lv_obj_t *halDb_text1 = lv_label_create(lv_screen_active());
+  halDb_text1 = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(halDb_text1, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_color(halDb_text1, lv_color_hex(0xFFFFFF), 0);
   lv_label_set_text(halDb_text1, fishText1.c_str());
   lv_obj_align(halDb_text1, LV_ALIGN_TOP_LEFT, 0, 260);
 
    // Szák 1 fogott halak
-  String fishText2 = " Szak 2:  " + String((int)count2 - 1) + "db hal.";
+  String fishText2 = " Szak 2:  " + String((int)count2 - 1) + "db hal.   " ;
   lv_obj_t *halDb_text2 = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(halDb_text2, &lv_font_montserrat_18, LV_PART_MAIN);
   lv_obj_set_style_text_color(halDb_text2, lv_color_hex(0xFFFFFF), 0);
   lv_label_set_text(halDb_text2, fishText2.c_str());
   lv_obj_align(halDb_text2, LV_ALIGN_TOP_LEFT, 0, 290);
+
+  lv_obj_t *hal_reset = lv_button_create(lv_scr_act());
+  // Erdőzöld
+  lv_obj_set_style_bg_color(hal_reset, lv_color_hex(0x228B22), LV_PART_MAIN);
+  lv_obj_set_size(hal_reset, 100, 18);
+  lv_obj_align(hal_reset, LV_ALIGN_TOP_RIGHT, -10, 260);
+  lv_obj_t *lbl5 = lv_label_create(hal_reset);
+  lv_label_set_text(lbl5, "Reset");
+  lv_obj_center(lbl5);
+  lv_obj_add_event_cb(
+  hal_reset, [](lv_event_t *e) {
+     // A változók nullázása a memóriában
+     kilo = 0.0;
+     count1 = 0;
+     
+     // FRISSÍTÉS A KÉPERNYŐN:
+     // Közvetlenül frissítjük a szöveget az új értékekkel
+     // Megjegyzés: a (count1 > 0 ? count1 - 1 : 0) logika kezeli, ha nem akarsz negatív számot
+     lv_label_set_text_fmt(halDb_text1, " Szak 1: %d db hal. %.2f kg", 
+                           (int)count1, 
+                           (float)kilo);
+  }, LV_EVENT_CLICKED, NULL);
 }
+  
+
 
 //////////////////// Exit Button ////////////////////////////
 /*A kilépés gomb globálisan létrehozott gomb,
@@ -651,10 +681,82 @@ void go_setting_screen(void) {
 
   lv_slider_set_value(slider_bl, cyd.getBlCfgPercent(), LV_ANIM_OFF);
 
-  //Képernyő forgatása
-  //cyd.rotateOrientation(true);
 }
 
+//////////////////// Modal window ////////////////////////////
+// 1. A Modal ablak gombmátrixának eseménykezelője (Számok, Törlés, OK)
+static void btnm_event_cb(lv_event_t * e) {
+    lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+    lv_obj_t * ta = (lv_obj_t *)lv_event_get_user_data(e); // A szövegmező átadva
+    const char * txt = lv_buttonmatrix_get_button_text(obj, lv_buttonmatrix_get_selected_button(obj));
+
+    if(strcmp(txt, "Torles") == 0) {
+        lv_textarea_set_text(ta, "");
+    } else if(strcmp(txt, "OK") == 0) {
+        // Érték mentése a kilo változóba
+        const char * valstr = lv_textarea_get_text(ta);
+        kilo += atof(valstr); 
+        
+        // Modal bezárása
+        if(modal_base) {
+            lv_obj_delete(modal_base);
+            modal_base = NULL;
+        }
+    } else {
+        // Szám gomb megnyomása: karakter hozzáadása
+        lv_textarea_add_text(ta, txt);
+    }
+}
+
+// 2. A Modal ablakot felépítő függvény
+void create_fish_modal() {
+    // Sötétített háttér réteg
+    modal_base = lv_obj_create(lv_screen_active());
+    lv_obj_set_size(modal_base, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_bg_color(modal_base, lv_palette_main(LV_PALETTE_GREEN), 0);
+    lv_obj_set_style_bg_opa(modal_base, LV_OPA_50, 0);
+    lv_obj_center(modal_base);
+
+    // Az ablak konténer
+    lv_obj_t * win = lv_obj_create(modal_base);
+    lv_obj_set_size(win, 240, 300);
+    lv_obj_center(win);
+    lv_obj_remove_flag(win, LV_OBJ_FLAG_SCROLLABLE);
+
+    // "X" bezáró gomb a jobb felső sarokban
+    lv_obj_t * close_btn = lv_button_create(win);
+    lv_obj_set_size(close_btn, 35, 35);
+    lv_obj_align(close_btn, LV_ALIGN_TOP_RIGHT, 10, -10);
+    lv_obj_add_event_cb(close_btn, [](lv_event_t *e) {
+        lv_obj_delete(modal_base);
+        modal_base = NULL;
+    }, LV_EVENT_CLICKED, NULL);
+    
+    lv_obj_t * close_label = lv_label_create(close_btn);
+    lv_label_set_text(close_label, LV_SYMBOL_CLOSE);
+    lv_obj_center(close_label);
+
+    // Szövegmező
+    lv_obj_t * ta = lv_textarea_create(win);
+    lv_obj_set_size(ta, LV_PCT(90), 40);
+    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 35);
+    lv_textarea_set_one_line(ta, true);
+    lv_textarea_set_placeholder_text(ta, "Suly? (kg)");
+
+    // Számbillentyűzet (Gombmátrix)
+    static const char * btnm_map[] = {"1", "2", "3", "\n",
+                                      "4", "5", "6", "\n",
+                                      "7", "8", "9", "\n",
+                                      "Torles", "0", "OK", ""};
+
+    lv_obj_t * btnm = lv_buttonmatrix_create(win);
+    lv_obj_set_size(btnm, LV_PCT(100), 160);
+    lv_obj_align(btnm, LV_ALIGN_BOTTOM_MID, 0, 5);
+    lv_buttonmatrix_set_map(btnm, btnm_map);
+    
+    // Eseménykezelő hozzárendelése a billentyűzethez, átadjuk a 'ta'-t (szövegmező)
+    lv_obj_add_event_cb(btnm, btnm_event_cb, LV_EVENT_VALUE_CHANGED, ta);
+}
 //////////////////// Receiver Stopper ////////////////////////////
 static void update_receiver_stopper_cb(lv_timer_t *t) {
   // Jelenlegi állapot
@@ -746,15 +848,15 @@ void go_receiverStopper(void) {
   lv_label_set_text(label_fish, " Hal ");
   lv_obj_center(label_fish);
   lv_obj_add_event_cb(
-    btn_fishCount,
-    [](lv_event_t *e) {
+    btn_fishCount, [](lv_event_t *e) {
       lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
       lv_label_set_text_fmt(label, "%" LV_PRIu32, count1);
       count1++;
+      create_fish_modal();
     },
     LV_EVENT_CLICKED, label_fish);
 
-
+// lv_obj_add_event_cb(btn_fishCount, create_fish_modal, LV_EVENT_CLICKED, NULL);
   //Hal számláló Szák 1
   lv_obj_t *btn_fishCount_plus = lv_button_create(lv_screen_active());
   lv_obj_set_style_bg_color(btn_fishCount_plus, lv_color_hex(0x228B22), LV_PART_MAIN);
@@ -1150,7 +1252,7 @@ void loop() {
     adoKapcsolva = false;
     Serial.println("Adó kapcsolat megszakadt (timeout)");
   }
-
+  
   lv_task_handler();  //Az LVGL könyvtár futtatása
   //lv_tick_inc(5);// A képernyő váltás késleltetése.
   delay(5);  //Az új képernyő megjelenések késleltetése a újra rajzolás segítése miatt.
