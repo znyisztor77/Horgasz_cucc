@@ -21,6 +21,7 @@
 # "DRAM segment data does not fit."
 -Ha nem fér bele a DRAM-ba fordításkor akkor túl nagy a rajzolás Buffer mérete.
 - (A kód beillesztés ablakot az alt_gr+7 bill. kombinációval lehet készíteni.)
+- A beállítás módosítását az LVG_CYD.cpp fájlban kell végrehajtani.
 ```
  // Draw buffer for LVGL / TFT_eSPI display
 //#define DRAW_BUF_SIZE (LVGL_CYD_TFT_WIDTH * LVGL_CYD_TFT_HEIGHT / 10 * (LV_COLOR_DEPTH / 8)) // Ez az alap beállítás.
